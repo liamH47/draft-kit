@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from draftkit import __version__
 
@@ -6,11 +6,11 @@ router = APIRouter()
 
 
 @router.get("/api/health")
-def health() -> dict[str, object]:
+def health(request: Request) -> dict[str, object]:
     return {
         "status": "ok",
         "version": __version__,
-        # Filled in at M1: per-source snapshot ages so you can check data
-        # freshness the morning of a draft.
-        "snapshots": {},
+        # Hours since the newest snapshot per source — check this the morning
+        # of a draft.
+        "snapshots": request.app.state.snapshot_store.ages(),
     }

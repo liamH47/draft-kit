@@ -1,0 +1,357 @@
+[
+ {
+  "player_id": "4984",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Josh",
+   "position": "QB",
+   "team": "BUF"
+  },
+  "stats": {
+   "pass_yd": 4300.0,
+   "pass_td": 33.0,
+   "pass_int": 11.0,
+   "rush_yd": 520.0,
+   "rush_td": 9.0,
+   "fum_lost": 3.0,
+   "adp_half_ppr": 1.0,
+   "adp_ppr": 2.2,
+   "adp_std": 0.5,
+   "adp_2qb": 0.5
+  }
+ },
+ {
+  "player_id": "4881",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Lamar",
+   "position": "QB",
+   "team": "BAL"
+  },
+  "stats": {
+   "pass_yd": 3900.0,
+   "pass_td": 30.0,
+   "pass_int": 8.0,
+   "rush_yd": 780.0,
+   "rush_td": 5.0,
+   "fum_lost": 4.0,
+   "adp_half_ppr": 2.7,
+   "adp_ppr": 3.9,
+   "adp_std": 2.2,
+   "adp_2qb": 1.4
+  }
+ },
+ {
+  "player_id": "4034",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Christian",
+   "position": "RB",
+   "team": "SF"
+  },
+  "stats": {
+   "rush_yd": 1050.0,
+   "rush_td": 9.0,
+   "rec": 58.0,
+   "rec_yd": 470.0,
+   "rec_td": 3.0,
+   "fum_lost": 2.0,
+   "adp_half_ppr": 4.4,
+   "adp_ppr": 4.8,
+   "adp_std": 5.9,
+   "adp_2qb": 5.7
+  }
+ },
+ {
+  "player_id": "9221",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Jahmyr",
+   "position": "RB",
+   "team": "DET"
+  },
+  "stats": {
+   "rush_yd": 1250.0,
+   "rush_td": 12.0,
+   "rec": 52.0,
+   "rec_yd": 420.0,
+   "rec_td": 2.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 6.1,
+   "adp_ppr": 6.5,
+   "adp_std": 7.6,
+   "adp_2qb": 7.9
+  }
+ },
+ {
+  "player_id": "9509",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Bijan",
+   "position": "RB",
+   "team": "ATL"
+  },
+  "stats": {
+   "rush_yd": 1300.0,
+   "rush_td": 11.0,
+   "rec": 55.0,
+   "rec_yd": 430.0,
+   "rec_td": 1.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 7.8,
+   "adp_ppr": 8.2,
+   "adp_std": 9.3,
+   "adp_2qb": 10.1
+  }
+ },
+ {
+  "player_id": "8138",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "James",
+   "position": "RB",
+   "team": "BUF"
+  },
+  "stats": {
+   "rush_yd": 1100.0,
+   "rush_td": 13.0,
+   "rec": 32.0,
+   "rec_yd": 250.0,
+   "rec_td": 1.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 9.5,
+   "adp_ppr": 9.9,
+   "adp_std": 11.0,
+   "adp_2qb": 12.3
+  }
+ },
+ {
+  "player_id": "7564",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Ja'Marr",
+   "position": "WR",
+   "team": "CIN"
+  },
+  "stats": {
+   "rec": 110.0,
+   "rec_yd": 1480.0,
+   "rec_td": 12.0,
+   "rush_yd": 25.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 11.2,
+   "adp_ppr": 11.6,
+   "adp_std": 12.7,
+   "adp_2qb": 14.6
+  }
+ },
+ {
+  "player_id": "5859",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "A.J.",
+   "position": "WR",
+   "team": "PHI"
+  },
+  "stats": {
+   "rec": 88.0,
+   "rec_yd": 1350.0,
+   "rec_td": 9.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 12.9,
+   "adp_ppr": 13.3,
+   "adp_std": 14.4,
+   "adp_2qb": 16.8
+  }
+ },
+ {
+  "player_id": "9488",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Jaxon",
+   "position": "WR",
+   "team": "SEA"
+  },
+  "stats": {
+   "rec": 104.0,
+   "rec_yd": 1310.0,
+   "rec_td": 8.0,
+   "fum_lost": 0.0,
+   "adp_half_ppr": 14.6,
+   "adp_ppr": 15.0,
+   "adp_std": 16.1,
+   "adp_2qb": 19.0
+  }
+ },
+ {
+  "player_id": "7547",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Amon-Ra",
+   "position": "WR",
+   "team": "DET"
+  },
+  "stats": {
+   "rec": 108.0,
+   "rec_yd": 1260.0,
+   "rec_td": 9.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 16.3,
+   "adp_ppr": 16.7,
+   "adp_std": 17.8,
+   "adp_2qb": 21.2
+  }
+ },
+ {
+  "player_id": "9493",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Puka",
+   "position": "WR",
+   "team": "LAR"
+  },
+  "stats": {
+   "rec": 100.0,
+   "rec_yd": 1370.0,
+   "rec_td": 7.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 18.0,
+   "adp_ppr": 18.4,
+   "adp_std": 19.5,
+   "adp_2qb": 23.4
+  }
+ },
+ {
+  "player_id": "8151",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Kenneth",
+   "position": "RB",
+   "team": "SEA"
+  },
+  "stats": {
+   "rush_yd": 980.0,
+   "rush_td": 8.0,
+   "rec": 38.0,
+   "rec_yd": 290.0,
+   "rec_td": 1.0,
+   "fum_lost": 2.0,
+   "adp_half_ppr": 19.7,
+   "adp_ppr": 20.1,
+   "adp_std": 21.2,
+   "adp_2qb": 25.6
+  }
+ },
+ {
+  "player_id": "11604",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Brock",
+   "position": "TE",
+   "team": "LVR"
+  },
+  "stats": {
+   "rec": 98.0,
+   "rec_yd": 1120.0,
+   "rec_td": 6.0,
+   "fum_lost": 0.0,
+   "adp_half_ppr": 21.4,
+   "adp_ppr": 21.8,
+   "adp_std": 22.9,
+   "adp_2qb": 27.8
+  }
+ },
+ {
+  "player_id": "8130",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Trey",
+   "position": "TE",
+   "team": "ARI"
+  },
+  "stats": {
+   "rec": 95.0,
+   "rec_yd": 1010.0,
+   "rec_td": 5.0,
+   "fum_lost": 1.0,
+   "adp_half_ppr": 23.1,
+   "adp_ppr": 23.5,
+   "adp_std": 24.6,
+   "adp_2qb": 30.0
+  }
+ },
+ {
+  "player_id": "11533",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "Brandon",
+   "position": "K",
+   "team": "DAL"
+  },
+  "stats": {
+   "xpm": 34.0,
+   "fgm_0_19": 1.0,
+   "fgm_20_29": 8.0,
+   "fgm_30_39": 10.0,
+   "fgm_40_49": 8.0,
+   "fgm_50p": 6.0,
+   "fgmiss": 3.0,
+   "adp_half_ppr": 24.8,
+   "adp_ppr": 26.0,
+   "adp_std": 24.3,
+   "adp_2qb": 32.2
+  }
+ },
+ {
+  "player_id": "SF",
+  "season": "2026",
+  "season_type": "regular",
+  "week": null,
+  "player": {
+   "first_name": "San Francisco",
+   "position": "DEF",
+   "team": "SF"
+  },
+  "stats": {
+   "sack": 42.0,
+   "int": 14.0,
+   "fum_rec": 9.0,
+   "def_td": 3.0,
+   "safe": 1.0,
+   "blk_kick": 1.0,
+   "adp_half_ppr": 26.0,
+   "adp_ppr": 27.0,
+   "adp_std": 25.0
+  }
+ }
+]

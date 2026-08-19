@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     static_dir: Path | None = None  # set in prod to the built frontend dist/
     cors_origins: list[str] = []  # dev only; prod is same-origin
+    season: int = 2026  # NFL season for projections/ADP
 
     @property
     def db_path(self) -> Path:

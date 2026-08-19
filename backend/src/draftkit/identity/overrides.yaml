@@ -1,0 +1,5 @@
+# Manual name -> sleeper_id fixes for players the resolver chain misses.
+# Keys are matched after name normalization, so punctuation/suffixes don't matter.
+# Example:
+#   "Kenneth Walker": "8151"
+{}

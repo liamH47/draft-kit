@@ -1,0 +1,216 @@
+{
+ "4984": {
+  "player_id": "4984",
+  "full_name": "Josh Allen",
+  "first_name": "Josh",
+  "last_name": "Allen",
+  "position": "QB",
+  "fantasy_positions": [
+   "QB"
+  ],
+  "team": "BUF",
+  "status": "Active",
+  "active": true
+ },
+ "4881": {
+  "player_id": "4881",
+  "full_name": "Lamar Jackson",
+  "first_name": "Lamar",
+  "last_name": "Jackson",
+  "position": "QB",
+  "fantasy_positions": [
+   "QB"
+  ],
+  "team": "BAL",
+  "status": "Active",
+  "active": true
+ },
+ "4034": {
+  "player_id": "4034",
+  "full_name": "Christian McCaffrey",
+  "first_name": "Christian",
+  "last_name": "McCaffrey",
+  "position": "RB",
+  "fantasy_positions": [
+   "RB"
+  ],
+  "team": "SF",
+  "status": "Active",
+  "active": true
+ },
+ "9221": {
+  "player_id": "9221",
+  "full_name": "Jahmyr Gibbs",
+  "first_name": "Jahmyr",
+  "last_name": "Gibbs",
+  "position": "RB",
+  "fantasy_positions": [
+   "RB"
+  ],
+  "team": "DET",
+  "status": "Active",
+  "active": true
+ },
+ "9509": {
+  "player_id": "9509",
+  "full_name": "Bijan Robinson",
+  "first_name": "Bijan",
+  "last_name": "Robinson",
+  "position": "RB",
+  "fantasy_positions": [
+   "RB"
+  ],
+  "team": "ATL",
+  "status": "Active",
+  "active": true
+ },
+ "8138": {
+  "player_id": "8138",
+  "full_name": "James Cook",
+  "first_name": "James",
+  "last_name": "Cook",
+  "position": "RB",
+  "fantasy_positions": [
+   "RB"
+  ],
+  "team": "BUF",
+  "status": "Active",
+  "active": true
+ },
+ "7564": {
+  "player_id": "7564",
+  "full_name": "Ja'Marr Chase",
+  "first_name": "Ja'Marr",
+  "last_name": "Chase",
+  "position": "WR",
+  "fantasy_positions": [
+   "WR"
+  ],
+  "team": "CIN",
+  "status": "Active",
+  "active": true
+ },
+ "5859": {
+  "player_id": "5859",
+  "full_name": "A.J. Brown",
+  "first_name": "A.J.",
+  "last_name": "Brown",
+  "position": "WR",
+  "fantasy_positions": [
+   "WR"
+  ],
+  "team": "PHI",
+  "status": "Active",
+  "active": true
+ },
+ "9488": {
+  "player_id": "9488",
+  "full_name": "Jaxon Smith-Njigba",
+  "first_name": "Jaxon",
+  "last_name": "Smith-Njigba",
+  "position": "WR",
+  "fantasy_positions": [
+   "WR"
+  ],
+  "team": "SEA",
+  "status": "Active",
+  "active": true
+ },
+ "7547": {
+  "player_id": "7547",
+  "full_name": "Amon-Ra St. Brown",
+  "first_name": "Amon-Ra",
+  "last_name": "St. Brown",
+  "position": "WR",
+  "fantasy_positions": [
+   "WR"
+  ],
+  "team": "DET",
+  "status": "Active",
+  "active": true
+ },
+ "9493": {
+  "player_id": "9493",
+  "full_name": "Puka Nacua",
+  "first_name": "Puka",
+  "last_name": "Nacua",
+  "position": "WR",
+  "fantasy_positions": [
+   "WR"
+  ],
+  "team": "LAR",
+  "status": "Active",
+  "active": true
+ },
+ "8151": {
+  "player_id": "8151",
+  "full_name": "Kenneth Walker III",
+  "first_name": "Kenneth",
+  "last_name": "Walker III",
+  "position": "RB",
+  "fantasy_positions": [
+   "RB"
+  ],
+  "team": "SEA",
+  "status": "Active",
+  "active": true
+ },
+ "11604": {
+  "player_id": "11604",
+  "full_name": "Brock Bowers",
+  "first_name": "Brock",
+  "last_name": "Bowers",
+  "position": "TE",
+  "fantasy_positions": [
+   "TE"
+  ],
+  "team": "LVR",
+  "status": "Active",
+  "active": true
+ },
+ "8130": {
+  "player_id": "8130",
+  "full_name": "Trey McBride",
+  "first_name": "Trey",
+  "last_name": "McBride",
+  "position": "TE",
+  "fantasy_positions": [
+   "TE"
+  ],
+  "team": "ARI",
+  "status": "Active",
+  "active": true
+ },
+ "11533": {
+  "player_id": "11533",
+  "full_name": "Brandon Aubrey",
+  "first_name": "Brandon",
+  "last_name": "Aubrey",
+  "position": "K",
+  "fantasy_positions": [
+   "K"
+  ],
+  "team": "DAL",
+  "status": "Active",
+  "active": true
+ },
+ "SF": {
+  "player_id": "SF",
+  "first_name": "San Francisco",
+  "last_name": "49ers",
+  "position": "DEF",
+  "fantasy_positions": [
+   "DEF"
+  ],
+  "team": "SF",
+  "status": "Active",
+  "active": true
+ },
+ "9999x": {
+  "player_id": "9999x",
+  "full_name": "Random Lineman",
+  "position": "OT",
+  "team": "SF",
+  "active": true
+ }
+}
