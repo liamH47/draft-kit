@@ -1,0 +1,16 @@
+# runtime data (DRAFTKIT_DATA_DIR)
+/data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# node
+node_modules/
+frontend/dist/
+
+# env
+.env
