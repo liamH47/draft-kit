@@ -32,6 +32,8 @@
 .setup button[type='submit'] { padding: 0.6rem; font: inherit; cursor: pointer; }
 .leagues { list-style: none; padding: 0; }
 .leagues li { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+.league-actions { display: flex; gap: 0.7rem; align-items: center; }
+.league-actions button { font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.15rem 0.6rem; }
 
 /* --- espn import --- */
 .import {
@@ -163,6 +165,9 @@ table.pool th:last-child {
 .actions button { font: inherit; font-size: 0.8rem; cursor: pointer; margin-left: 0.2rem; }
 button.mine { background: var(--steal); color: #fff; border: 1px solid var(--steal); border-radius: 3px; }
 .note { cursor: help; }
+
+/* the model disagreeing hard with consensus is worth a glance */
+td.consensus-flag { color: var(--tier-2); font-weight: 600; }
 
 /* --- snake draft board --- */
 .snake-wrap { border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem 0.75rem; margin: 0 0 0.9rem; }

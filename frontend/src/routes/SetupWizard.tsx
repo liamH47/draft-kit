@@ -252,7 +252,18 @@ export function SetupWizard() {
                 <span>
                   {l.name} — {l.num_teams} teams, slot {l.my_slot}, {l.scoring_preset}
                 </span>
-                <Link to={`/cheatsheet/${l.id}`}>cheat sheet</Link>
+                <span className="league-actions">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const { session } = await api.createSession(l.id, `${l.name} draft`)
+                      navigate(`/draft/${session.id}`)
+                    }}
+                  >
+                    draft
+                  </button>
+                  <Link to={`/cheatsheet/${l.id}`}>cheat sheet</Link>
+                </span>
               </li>
             ))}
           </ul>
