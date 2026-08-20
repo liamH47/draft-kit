@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
+import { api } from '../api/client'
 import type { Tag } from '../api/types'
 import { PlayerTable } from '../components/PlayerTable'
 import { PositionFilter } from '../components/PositionFilter'
@@ -12,6 +13,7 @@ import { useBoard, useDraftActions, useSessionEvents } from '../state/useBoard'
 
 export function DraftBoard() {
   const sessionId = Number(useParams().sessionId)
+  const navigate = useNavigate()
   const { data: board, isLoading, error } = useBoard(sessionId)
   useSessionEvents(sessionId)
   const { draft, correct, undo, tag, notice, clearNotice } = useDraftActions(
@@ -72,7 +74,25 @@ export function DraftBoard() {
           <button type="button" onClick={() => undo.mutate()} disabled={board.picks_made === 0}>
             undo last pick
           </button>
+          <button
+            type="button"
+            onClick={async () => {
+              // The old session is kept, never wiped — a misclick here must
+              // not be able to destroy a live draft's pick log.
+              if (!window.confirm('Start this draft over with an empty board?')) return
+              const { session } = await api.createSession(
+                board.league.id,
+                `${board.league.name} draft`,
+              )
+              navigate(`/draft/${session.id}`)
+            }}
+          >
+            restart draft
+          </button>
           <Link to={`/cheatsheet/${board.league.id}`}>cheat sheet</Link>
+          <Link to="/" title="League settings — change parameters or set up a new league">
+            settings
+          </Link>
         </div>
       </header>
 
