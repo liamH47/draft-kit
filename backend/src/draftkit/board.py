@@ -14,7 +14,7 @@ from draftkit.engine.baselines import baselines
 from draftkit.engine.recommend import Candidate, recommend
 from draftkit.engine.snake import gap_after, picks_until_my_turn, round_and_slot
 from draftkit.models.league import LeagueConfig
-from draftkit.pool import build_pool
+from draftkit.pool import build_pool_cached
 from draftkit.snapshots.store import SnapshotStore
 
 _OVERRIDES = Path(__file__).parent / "identity" / "overrides.yaml"
@@ -34,7 +34,7 @@ def build_board(
     num_teams = league_row["num_teams"]
     rounds = league_row["rounds"]
 
-    pool_result = build_pool(
+    pool_result = build_pool_cached(
         store,
         config,
         season=season,

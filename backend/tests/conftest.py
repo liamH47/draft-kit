@@ -25,6 +25,18 @@ def load_fixture(url_fragment: str) -> RawPayload:
     raise KeyError(url_fragment)
 
 
+@pytest.fixture(autouse=True)
+def isolated_pool_cache():
+    """Every test starts with a cold pool cache. Without this, a test that
+    builds a pool could serve it to a later test with the same league config
+    — notably masking what the offline-fallback test actually verifies."""
+    from draftkit.pool import clear_pool_cache
+
+    clear_pool_cache()
+    yield
+    clear_pool_cache()
+
+
 @pytest.fixture
 def fixture_fetcher():
     """A Fetcher serving recorded fixture payloads by URL match."""
