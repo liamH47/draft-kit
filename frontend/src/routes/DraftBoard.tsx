@@ -7,6 +7,7 @@ import { PositionFilter } from '../components/PositionFilter'
 import { QuickEntry } from '../components/QuickEntry'
 import { RecommendationPanel } from '../components/RecommendationPanel'
 import { RosterGrid } from '../components/RosterGrid'
+import { SnakeBoard } from '../components/SnakeBoard'
 import { useBoard, useDraftActions, useSessionEvents } from '../state/useBoard'
 
 export function DraftBoard() {
@@ -102,6 +103,18 @@ export function DraftBoard() {
         Enter marks a player taken · Shift+Enter marks your pick · Ctrl+T/A/F tags him ·
         typing someone already taken fixes that pick
       </p>
+
+      <details className="snake-wrap">
+        <summary>
+          Draft board
+          {clock && (
+            <span className="summary-note">
+              round {clock.round_no} of {board.league.rounds}
+            </span>
+          )}
+        </summary>
+        <SnakeBoard board={board} />
+      </details>
 
       <div className="columns">
         <section className="pool-pane">
