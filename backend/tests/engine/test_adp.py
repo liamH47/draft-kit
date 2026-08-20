@@ -1,4 +1,4 @@
-from draftkit.engine.adp import blend_adp
+from draftkit.engine.adp import blend_adp, consensus_rank
 
 
 def test_empty_sources():
@@ -15,6 +15,20 @@ def test_weighted_mean():
 
 def test_unknown_source_defaults_to_weight_one():
     assert blend_adp({"mystery": 8.0}, {}) == 8.0
+
+
+# --- consensus rank ---------------------------------------------------------
+
+
+def test_consensus_rank_weights_espn_over_expert():
+    # Default weights: espn 1.0, expert 0.5 -> (10*1 + 40*0.5) / 1.5 = 20
+    assert consensus_rank({"espn": 10.0, "expert": 40.0}) == 20.0
+    assert consensus_rank({"expert": 40.0}) == 40.0
+
+
+def test_consensus_rank_is_none_without_lists_or_weights():
+    assert consensus_rank({}) is None
+    assert consensus_rank({"espn": 10.0}, weights={"espn": 0.0}) is None
 
 
 # --- list vs market ---------------------------------------------------------

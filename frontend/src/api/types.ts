@@ -13,6 +13,7 @@ export type PoolPlayer = {
   adp_stdev: number | null
   tier: number | null
   tier_expert: number | null
+  consensus_rank: number | null
   rank: number
   pos_rank: number
   vorp: number

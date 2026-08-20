@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from draftkit.engine.adp import blend_adp, list_vs_market
+from draftkit.engine.adp import blend_adp, consensus_rank, list_vs_market
 from draftkit.engine.scoring import score
 from draftkit.engine.tiers import gap_tiers
 from draftkit.identity.resolver import Resolver
@@ -205,6 +205,7 @@ def build_pool(
                 adp_stdev=ffc.get("stdev") if ffc else None,
                 rank_by_source=rank_by_source,
                 list_vs_market=list_vs_market(rank_by_source, blended),
+                consensus_rank=consensus_rank(rank_by_source),
                 extra={k: v for k, v in extra.items() if v is not None},
                 tier_expert=tiers_by_id.get(player_id),
                 rank=0,

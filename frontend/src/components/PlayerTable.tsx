@@ -22,6 +22,9 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
           <th title="Value over replacement player">VORP</th>
           <th>ADP</th>
           <th title="Picks past ADP: + is a steal, − is a reach">Δ</th>
+          <th title="Consensus rank across ranking lists (ESPN weighted over expert). Highlighted when the model strongly disagrees.">
+            Cons
+          </th>
           {onTag && <th>Tags</th>}
           {onDraft && <th />}
         </tr>

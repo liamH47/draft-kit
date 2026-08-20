@@ -31,6 +31,9 @@ class PoolPlayer(BaseModel):
     # Positive when a list is higher on him than the market is — the market has
     # not caught up, so he tends to last longer than his list rank implies.
     list_vs_market: float | None = None
+    # Weighted blend of the ranking lists, shown so a big model-vs-consensus
+    # disagreement is visible rather than silent. Never a score input.
+    consensus_rank: float | None = None
     # Whatever else a source provided, namespaced by source. Sources change
     # shape; nothing is dropped merely for being unrecognised.
     extra: dict[str, float | str | None] = {}

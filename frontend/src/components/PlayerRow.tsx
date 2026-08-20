@@ -13,6 +13,27 @@ type Props = {
   onTag?: (playerId: string, tag: Tag | null) => void
 }
 
+// The model disagreeing hard with the room's consensus should be visible,
+// not silent — it is either an edge or a data problem, and mid-draft the
+// user deserves the chance to decide which.
+function ConsensusCell({ player }: { player: PoolPlayer }) {
+  const cons = player.consensus_rank
+  if (cons === null) return <td className="num muted">—</td>
+  const diff = cons - player.rank // + : we are higher on him than consensus
+  const disagree = Math.abs(diff) >= 15
+  const title = disagree
+    ? diff > 0
+      ? `Model rank ${player.rank}, consensus ~${cons.toFixed(0)} — the model is much higher on him`
+      : `Model rank ${player.rank}, consensus ~${cons.toFixed(0)} — the model is much lower on him`
+    : `Consensus rank across ranking lists`
+  return (
+    <td className={disagree ? 'num consensus-flag' : 'num'} title={title}>
+      {cons.toFixed(0)}
+      {disagree && (diff > 0 ? ' ↑' : ' ↓')}
+    </td>
+  )
+}
+
 export function PlayerRow({ player, onDraft, onTag }: Props) {
   const adp = adpLabel(player)
   return (
@@ -37,6 +58,7 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
       <td className={`num badge ${adp.kind}`} title="Picks he has lasted past ADP">
         {adp.text}
       </td>
+      <ConsensusCell player={player} />
       {onTag && (
         <td className="tags">
           {TAGS.map((t) => (
