@@ -12,7 +12,7 @@ from typing import Any
 from draftkit.db import repo
 from draftkit.engine.baselines import baselines
 from draftkit.engine.recommend import Candidate, recommend
-from draftkit.engine.snake import picks_until_my_turn, round_and_slot
+from draftkit.engine.snake import gap_after, picks_until_my_turn, round_and_slot
 from draftkit.models.league import LeagueConfig
 from draftkit.pool import build_pool
 from draftkit.snapshots.store import SnapshotStore
@@ -58,6 +58,17 @@ def build_board(
     on_clock = made + 1
     total = num_teams * rounds
     until_turn = picks_until_my_turn(num_teams, config.my_slot, made, rounds)
+    # On my own pick until_turn is 0, which would silence tier urgency at the
+    # only moment recommendations matter. Urgency there is about surviving to
+    # my NEXT turn, so hand recommend() that gap instead (None in the final
+    # round — there is no next turn). The UI keeps the raw 0: it means "you're
+    # on the clock".
+    rec_until = until_turn
+    if until_turn == 0:
+        my_round = round_and_slot(made + 1, num_teams)[0]
+        rec_until = (
+            gap_after(my_round, config.my_slot, num_teams) - 1 if my_round < rounds else None
+        )
 
     available: list[dict[str, Any]] = []
     candidates: list[Candidate] = []
@@ -65,10 +76,21 @@ def build_board(
     my_players: list[dict[str, Any]] = []
     drafted_rows: dict[str, dict[str, Any]] = {}
 
+    # Urgency needs tiers that mean scarcity. Gap tiers on the flat live WR
+    # curve run 18-70 players wide (firing for everyone but WRs), while Boris
+    # Chen's expert tiers have sane sizes — so prefer expert tiers wherever he
+    # covers the position, gap tiers only where he doesn't (K, most DEF).
+    # Numbering must never mix within a position: an uncovered player at a
+    # covered position gets no tier rather than a colliding gap tier.
+    expert_positions = {p.position for p in pool_result.players if p.tier_expert}
+
     for player in pool_result.players:
-        base = bases.get(player.position, {"vorp": 0.0, "vols": 0.0})
+        base = bases.get(player.position, {"vorp": 0.0, "vols": 0.0, "value": 0.0})
         vorp = round(player.points - base["vorp"], 1)
         vols = round(player.points - base["vols"], 1)
+        # What the score is built on: the VOLS/VORP midpoint, so a projection
+        # tail that craters at one position can't skew cross-position value.
+        value = round(player.points - base["value"], 1)
         tag_row = tags.get(player.player_id, {})
         row = player.model_dump() | {
             "vorp": vorp,
@@ -90,9 +112,9 @@ def build_board(
                 name=player.name,
                 position=player.position,
                 points=player.points,
-                vorp=vorp,
+                vorp=value,
                 adp=player.adp,
-                tier=player.tier,
+                tier=(player.tier_expert if player.position in expert_positions else player.tier),
                 tag=tag_row.get("tag"),
                 list_vs_market=player.list_vs_market,
             )
@@ -104,7 +126,7 @@ def build_board(
             league=config,
             my_counts=my_counts,
             current_pick=on_clock,
-            picks_until_turn=until_turn,
+            picks_until_turn=rec_until,
             current_round=round_and_slot(min(on_clock, total), num_teams)[0],
             total_rounds=rounds,
             autodraft_count=config.autodraft_count,

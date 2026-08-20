@@ -110,6 +110,22 @@ def test_scoring_format_changes_the_board_ordering(tmp_path, fixture_fetcher):
     assert ppr_pts > std_pts
 
 
+def test_tier_urgency_still_fires_on_my_own_pick(client, session):
+    """picks_until_my_turn is 0 on the clock, which must not silence tier
+    urgency at the only moment advice matters — it keys off the gap to my NEXT
+    turn instead. The payload keeps the raw 0: the UI reads it as 'your pick'."""
+    sid = session["session_id"]
+    data = board(client, session)
+    for player in data["available"][:6]:  # slots 1-6 pick; I'm slot 7, now up
+        client.post(f"/api/sessions/{sid}/picks", json={"player_id": player["player_id"]})
+
+    mine = board(client, session)
+    assert mine["picks_until_my_turn"] == 0
+    assert any(
+        "until your turn" in reason for rec in mine["recommendations"] for reason in rec["reasons"]
+    )
+
+
 def test_board_reports_source_freshness(client, session):
     data = board(client, session)
     assert "sleeper_players" in data["sources"]

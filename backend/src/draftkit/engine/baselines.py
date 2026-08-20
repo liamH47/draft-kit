@@ -78,8 +78,17 @@ def baselines(
     for position, points in points_by_position.items():
         vols_index = round(league.num_teams * starters.get(position, 0))
         vorp_index = round(league.num_teams * depth.get(position, 0))
+        vols = _baseline_points(points, vols_index)
+        vorp = _baseline_points(points, vorp_index)
         out[position] = {
-            "vols": _baseline_points(points, vols_index),
-            "vorp": _baseline_points(points, vorp_index),
+            "vols": vols,
+            "vorp": vorp,
+            # What the recommendation score measures against. Pure VORP sits in
+            # the projection tail, where preseason numbers crater to near zero
+            # at some positions (deep RBs) but not others (deep WRs) — an
+            # artifact that once handed every RB a flat ~66-point premium over
+            # every WR. The midpoint keeps VORP's waiver-wire logic while VOLS
+            # anchors it to players someone actually starts.
+            "value": (vols + vorp) / 2,
         }
     return out
