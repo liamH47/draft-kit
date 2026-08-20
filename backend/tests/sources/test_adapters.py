@@ -47,7 +47,8 @@ def test_ffcalc_parse():
     by_name = {r["name"]: r for r in ds.rows}
     assert by_name["Christian McCaffrey"]["adp"] > 0
     assert by_name["Christian McCaffrey"]["bye"] is not None
-    assert by_name["San Francisco Defense"]["position"] == "DEF"  # DST normalized
+    assert by_name["San Francisco Defense"]["position"] == "DEF"
+    assert by_name["Brandon Aubrey"]["position"] == "K"  # FFC labels kickers PK
 
 
 def test_ffcalc_rejects_error_payload():
