@@ -18,6 +18,7 @@ from typing import Any
 import yaml
 
 from draftkit.identity.normalize import normalize_name
+from draftkit.identity.teams import canonical_team, team_from_defense_name
 
 
 @dataclass
@@ -31,6 +32,8 @@ class Resolver:
     _by_name_pos_team: dict[tuple[str, str, str], str] = field(default_factory=dict)
     _by_name_pos: dict[tuple[str, str], str | None] = field(default_factory=dict)
     _overrides: dict[str, str] = field(default_factory=dict)
+    # team abbreviation -> the defense's canonical id
+    _defense_ids: dict[str, str] = field(default_factory=dict)
     unmatched: list[dict[str, Any]] = field(default_factory=list)
 
     @classmethod
@@ -42,11 +45,23 @@ class Resolver:
     ) -> "Resolver":
         r = cls()
         for p in players:
-            r._index(p["name"], p["position"], p.get("team"), p["sleeper_id"])
+            if p["position"] == "DEF":
+                # Sleeper keys defenses by team abbreviation, which makes the
+                # team code the canonical id at no cost.
+                abbr = canonical_team(p.get("team")) or team_from_defense_name(p["name"])
+                if abbr:
+                    r._defense_ids.setdefault(abbr, p["sleeper_id"])
+                continue
+            r._index(p["name"], p["position"], canonical_team(p.get("team")), p["sleeper_id"])
         for row in crosswalk or []:
             for key in ("name", "merge_name"):
                 if row.get(key):
-                    r._index(row[key], row.get("position", ""), row.get("team"), row["sleeper_id"])
+                    r._index(
+                        row[key],
+                        row.get("position", ""),
+                        canonical_team(row.get("team")),
+                        row["sleeper_id"],
+                    )
         if overrides_path and overrides_path.is_file():
             loaded = yaml.safe_load(overrides_path.read_text()) or {}
             r._overrides = {normalize_name(k): str(v) for k, v in loaded.items()}
@@ -68,6 +83,17 @@ class Resolver:
         norm = normalize_name(name)
         if norm in self._overrides:
             return Resolution(self._overrides[norm], "override")
+
+        # Defenses have no id in any crosswalk and a different name in every
+        # feed, but they always denote a team — so resolve the team instead.
+        if position == "DEF":
+            abbr = canonical_team(team) or team_from_defense_name(name)
+            if abbr and abbr in self._defense_ids:
+                return Resolution(self._defense_ids[abbr], "team")
+            self.unmatched.append({"name": name, "position": position, "team": team})
+            return Resolution(None, "unmatched")
+
+        team = canonical_team(team) or team
         if team and (hit := self._by_name_pos_team.get((norm, position, team))):
             return Resolution(hit, "exact")
         hit = self._by_name_pos.get((norm, position))

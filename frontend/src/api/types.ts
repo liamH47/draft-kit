@@ -56,12 +56,19 @@ export type OnTheClock = { overall_no: number; round_no: number; slot: number }
 
 export type SourceMeta = { fetched_at: string; stale: boolean }
 
+export type DraftedPlayer = PoolPlayer & {
+  overall_no: number
+  round_no: number
+  is_mine: boolean
+}
+
 export type Board = {
   session: { id: number; name: string; league_id: number }
   league: League
   available: PoolPlayer[]
   recommendations: Recommendation[]
   my_players: PoolPlayer[]
+  drafted: DraftedPlayer[]
   my_counts: Record<string, number>
   picks: Pick[]
   on_the_clock: OnTheClock | null

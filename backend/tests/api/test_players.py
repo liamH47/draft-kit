@@ -63,3 +63,16 @@ def test_health_reports_snapshot_ages(tmp_path, fixture_fetcher):
     client.get("/api/players")
     ages = client.get("/api/health").json()["snapshots"]
     assert "sleeper_players" in ages and "ffcalc" in ages
+
+
+def test_defenses_join_to_their_market_data(tmp_path, fixture_fetcher):
+    """Defenses have no crosswalk id and a different name in every feed, so
+    they used to lose ADP and bye entirely."""
+    client = make_client(tmp_path, fixture_fetcher)
+    players = client.get("/api/players?scoring=half_ppr").json()["players"]
+    defenses = [p for p in players if p["position"] == "DEF"]
+    assert defenses, "expected a defense in the pool"
+    sf = defenses[0]
+    assert sf["adp"] is not None, "defense should carry a blended ADP"
+    assert sf["bye"] is not None, "defense bye comes only from FFC"
+    assert "ffcalc" in sf["adp_by_source"]

@@ -13,14 +13,16 @@ export function DraftBoard() {
   const sessionId = Number(useParams().sessionId)
   const { data: board, isLoading, error } = useBoard(sessionId)
   useSessionEvents(sessionId)
-  const { draft, undo, tag, notice, clearNotice } = useDraftActions(sessionId, board?.league.id)
+  const { draft, correct, undo, tag, notice, clearNotice } = useDraftActions(
+    sessionId,
+    board?.league.id,
+  )
   const [position, setPosition] = useState('ALL')
 
   // The pick log stores ids; the pool carries the names.
   const byId = useMemo(() => {
     const map = new Map<string, string>()
-    for (const p of board?.available ?? []) map.set(p.player_id, p.name)
-    for (const p of board?.my_players ?? []) map.set(p.player_id, p.name)
+    for (const p of board?.drafted ?? []) map.set(p.player_id, p.name)
     return map
   }, [board])
 
@@ -89,7 +91,17 @@ export function DraftBoard() {
         </p>
       )}
 
-      <QuickEntry players={board.available} onDraft={onDraft} />
+      <QuickEntry
+        players={board.available}
+        drafted={board.drafted}
+        onDraft={onDraft}
+        onTag={(playerId, value) => tag.mutate({ playerId, value })}
+        onCorrect={(overallNo, playerId, name) => correct.mutate({ overallNo, playerId, name })}
+      />
+      <p className="entry-hint">
+        Enter marks a player taken · Shift+Enter marks your pick · Ctrl+T/A/F tags him ·
+        typing someone already taken fixes that pick
+      </p>
 
       <div className="columns">
         <section className="pool-pane">

@@ -137,6 +137,19 @@ def append_pick(conn: sqlite3.Connection, session_id: int, pick: dict[str, Any])
     return dict(row)
 
 
+def tombstone_pick_at(conn: sqlite3.Connection, session_id: int, overall_no: int) -> dict | None:
+    """Retire one specific pick, leaving its slot free to be refilled."""
+    row = conn.execute(
+        "SELECT * FROM pick WHERE session_id = ? AND overall_no = ? AND undone = 0",
+        (session_id, overall_no),
+    ).fetchone()
+    if row is None:
+        return None
+    with conn:
+        conn.execute("UPDATE pick SET undone = 1 WHERE id = ?", (row["id"],))
+    return dict(row)
+
+
 def tombstone_last_pick(conn: sqlite3.Connection, session_id: int) -> dict | None:
     """Undo: flag the highest live pick as undone. The row stays for the audit
     trail so a later live-sync disagreement is visible rather than silent."""

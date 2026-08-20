@@ -59,6 +59,50 @@ def record_pick(
     return Pick(**{**row, "is_mine": bool(row["is_mine"]), "undone": bool(row["undone"])})
 
 
+class NoSuchPick(Exception):
+    """That pick number has not been made in this session."""
+
+
+def correct_pick(
+    conn: sqlite3.Connection,
+    session: dict,
+    league: dict,
+    overall_no: int,
+    player_id: str,
+) -> Pick:
+    """Replace the player recorded at one pick number.
+
+    Mistyping pick 43 and noticing at 51 should cost one correction, not nine
+    undos and nine re-entries while the room keeps drafting. The wrong pick is
+    tombstoned rather than deleted, so the log still shows what happened.
+    """
+    from draftkit.db import repo
+
+    picks = repo.live_picks(conn, session["id"])
+    if any(p["player_id"] == player_id and p["overall_no"] != overall_no for p in picks):
+        raise DuplicatePick(player_id)
+
+    previous = repo.tombstone_pick_at(conn, session["id"], overall_no)
+    if previous is None:
+        raise NoSuchPick(f"pick {overall_no} has not been made")
+
+    row = repo.append_pick(
+        conn,
+        session["id"],
+        {
+            "overall_no": overall_no,
+            "round_no": previous["round_no"],
+            "slot": previous["slot"],
+            "player_id": player_id,
+            # Whose pick it was is a property of the slot, not of who was
+            # mistakenly recorded in it.
+            "is_mine": previous["slot"] == league["my_slot"],
+            "source": "correction",
+        },
+    )
+    return Pick(**{**row, "is_mine": bool(row["is_mine"]), "undone": bool(row["undone"])})
+
+
 def undo_last_pick(conn: sqlite3.Connection, session: dict) -> Pick | None:
     from draftkit.db import repo
 

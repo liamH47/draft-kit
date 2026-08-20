@@ -98,6 +98,21 @@ const recText = await page.locator('.recs').innerText()
 assert.ok(recText.includes(targetName.trim()), `${targetName} should still be recommended`)
 await page.screenshot({ path: `${SHOTS}/5-tagged.png`, fullPage: true })
 
+// --- searching for someone already taken offers the fix -------------------
+// `mine` is a player we drafted earlier, so he is certainly off the board.
+const takenSurname = mine.trim().split(/\s+/).pop().slice(0, 4)
+await page.fill('.quick-entry input', takenSurname)
+await page.waitForSelector('.matches li.gone')
+const goneText = await page.locator('.matches li.gone').first().innerText()
+assert.ok(/already taken at #\d+/.test(goneText), `expected a "gone" hit, saw: ${goneText}`)
+await page.screenshot({ path: `${SHOTS}/6-already-taken.png` })
+await page.press('.quick-entry input', 'Escape')
+
+// --- a search that matches nobody says so, rather than going blank ---------
+await page.fill('.quick-entry input', 'zzzznobody')
+await page.waitForSelector('.no-matches')
+await page.press('.quick-entry input', 'Escape')
+
 // --- the pick log records what happened ----------------------------------
 const logText = await page.locator('.pick-log').innerText()
 assert.ok(/#\d+/.test(logText), 'pick log should show numbered picks')

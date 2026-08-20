@@ -82,7 +82,8 @@ def parse(raw: RawPayload) -> SourceDataset:
     rows = []
     for entry in data:
         player = entry.get("player") or entry
-        position = _POSITION_BY_ID.get(player.get("defaultPositionId"))
+        position_id = player.get("defaultPositionId")
+        position = _POSITION_BY_ID.get(position_id) if isinstance(position_id, int) else None
         if position is None:
             continue
         ownership = player.get("ownership") or {}

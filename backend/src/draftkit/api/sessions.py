@@ -128,6 +128,27 @@ def create_pick(request: Request, session_id: int, body: PickCreate) -> dict:
     return {"pick": pick.model_dump(), **board}
 
 
+class PickCorrection(BaseModel):
+    player_id: str
+
+
+@router.put("/{session_id}/picks/{overall_no}")
+def correct_pick(request: Request, session_id: int, overall_no: int, body: PickCorrection) -> dict:
+    """Fix a pick you got wrong several picks ago, without unwinding the board."""
+    conn = request.app.state.db
+    session, league = _load(conn, session_id)
+    try:
+        pick = ingest.correct_pick(conn, session, league, overall_no, body.player_id)
+    except ingest.NoSuchPick as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ingest.DuplicatePick as exc:
+        raise HTTPException(409, f"player {exc} is already drafted") from exc
+
+    board = _board(conn, session, league)
+    request.app.state.events.publish(session_id, "pick_corrected", {"pick": pick.model_dump()})
+    return {"pick": pick.model_dump(), **board}
+
+
 @router.post("/{session_id}/picks/undo")
 def undo_pick(request: Request, session_id: int) -> dict:
     conn = request.app.state.db
