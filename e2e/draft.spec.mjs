@@ -53,22 +53,24 @@ await page.waitForSelector('.matches li')
 await page.screenshot({ path: `${SHOTS}/3-quick-entry.png` })
 await page.press('.quick-entry input', 'Enter')
 
-await page.waitForFunction(
-  (n) => document.querySelectorAll('table.pool tbody tr').length === n - 1,
-  startingRows,
-)
+// The pool table renders a capped number of rows, so with a big live pool the
+// row count never changes — wait for the drafted NAME to leave the board.
+const nameGone = (name) =>
+  ![...document.querySelectorAll('table.pool tbody tr .name-cell')].some((c) =>
+    c.textContent.startsWith(name),
+  )
+await page.waitForFunction(nameGone, topName)
 const names = await page.locator('table.pool tbody tr .name-cell').allInnerTexts()
 assert.ok(!names.some((n) => n.startsWith(topName)), `${topName} should be off the board`)
 
 // --- my pick, via Shift+Enter -------------------------------------------
 async function draftTopPlayer(modifier = 'Enter') {
-  const before = await page.locator('table.pool tbody tr').count()
   const name = await page.locator('table.pool tbody tr .name-cell').first().innerText()
   await page.fill('.quick-entry input', name.slice(0, 5))
   await page.waitForSelector('.matches li')
   await page.press('.quick-entry input', modifier)
-  // Wait for the board to actually shrink rather than guessing at a delay.
-  await page.waitForFunction((n) => document.querySelectorAll('table.pool tbody tr').length === n - 1, before)
+  // Wait for him to actually leave the board rather than guessing at a delay.
+  await page.waitForFunction(nameGone, name)
   return name
 }
 
@@ -83,11 +85,15 @@ await page.waitForFunction(
 await page.screenshot({ path: `${SHOTS}/4-my-pick.png`, fullPage: true })
 
 // --- tagging feeds recommendations --------------------------------------
-// Tag the top remaining player, who is certain to be in the recommendation
-// list, so this asserts the tag->reason wiring rather than the score maths
-// (promotion from further down the board is covered by unit tests).
-const targetRow = page.locator('table.pool tbody tr').first()
-const targetName = await targetRow.locator('.name-cell').innerText()
+// Tag the player the engine already recommends most, so this asserts the
+// tag->reason wiring rather than the score maths (promotion from further down
+// the board is covered by unit tests). The top TABLE row won't do: at live
+// pool scale the highest raw-points player is a QB who is not in the top 5.
+const targetName = await page.locator('.recs .rec-head strong').first().innerText()
+const targetRow = page
+  .locator('table.pool tbody tr')
+  .filter({ hasText: targetName })
+  .first()
 await targetRow.locator('button.tag').first().click()
 await page.waitForFunction(
   () => document.querySelector('.recs')?.textContent?.includes('tagged him a target'),
@@ -119,11 +125,14 @@ assert.ok(/#\d+/.test(logText), 'pick log should show numbered picks')
 assert.ok(logText.includes('you'), 'your own pick should be marked in the log')
 
 // --- undo ----------------------------------------------------------------
-const beforeUndo = await page.locator('table.pool tbody tr').count()
+// The last pick made was `mine`; undo must put that name back on the board.
 await page.click('button:has-text("undo last pick")')
 await page.waitForFunction(
-  (n) => document.querySelectorAll('table.pool tbody tr').length === n + 1,
-  beforeUndo,
+  (name) =>
+    [...document.querySelectorAll('table.pool tbody tr .name-cell')].some((c) =>
+      c.textContent.startsWith(name),
+    ),
+  mine,
 )
 
 assert.deepEqual(errors, [], `console/page errors: ${errors.join(' | ')}`)
