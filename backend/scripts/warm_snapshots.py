@@ -5,6 +5,8 @@ Run this the morning of a draft (and before recording new test fixtures):
 """
 
 from draftkit.config import get_settings
+from draftkit.db import repo
+from draftkit.db.connection import connect
 from draftkit.snapshots.store import SnapshotStore
 from draftkit.sources import (
     borischen_tiers,
@@ -14,6 +16,21 @@ from draftkit.sources import (
     sleeper_players,
     sleeper_projections,
 )
+
+
+def league_team_counts() -> set[int]:
+    """FFC snapshots are keyed by team count, so warm one per configured
+    league — a draft run with DRAFTKIT_OFFLINE=1 can only read what was
+    warmed, and an 8-team league cannot use the 12-team file."""
+    counts = {12}
+    settings = get_settings()
+    try:
+        conn = connect(settings.db_path)
+        counts |= {league["num_teams"] for league in repo.list_leagues(conn)}
+        conn.close()
+    except Exception:
+        pass  # no database yet — the default still gets warmed
+    return counts
 
 
 def main() -> int:
@@ -27,7 +44,8 @@ def main() -> int:
         (espn_market, {"season": season}),
     ]
     for preset in ("standard", "half_ppr", "ppr"):
-        jobs.append((ffcalc_adp, {"format": preset, "teams": 12, "year": season}))
+        for teams in sorted(league_team_counts()):
+            jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
         jobs.append((borischen_tiers, {"format": preset}))
 
     failures = 0
