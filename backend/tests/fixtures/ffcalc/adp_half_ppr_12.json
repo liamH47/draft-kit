@@ -192,6 +192,19 @@
    "bye": 9
   },
   {
+   "player_id": 2014,
+   "name": "Brandon Aubrey",
+   "position": "PK",
+   "team": "DAL",
+   "adp": 158.2,
+   "adp_formatted": "14.03",
+   "times_drafted": 96,
+   "high": 140,
+   "low": 172,
+   "stdev": 6.8,
+   "bye": 10
+  },
+  {
    "player_id": 2099,
    "name": "San Francisco Defense",
    "position": "DEF",

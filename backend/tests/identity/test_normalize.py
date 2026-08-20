@@ -15,6 +15,8 @@ from draftkit.identity.normalize import normalize_name
         ("Jaxon Smith-Njigba", "jaxon smith njigba"),
         ("Amon-Ra St. Brown", "amon ra st brown"),
         ("  Puka   Nacua ", "puka nacua"),
+        ("Eddy Piñeiro", "eddy pineiro"),  # FFC keeps the ñ, Sleeper drops it
+        ("Dónta Foreman", "donta foreman"),
     ],
 )
 def test_normalize(raw, expected):

@@ -26,10 +26,27 @@ def json_body(payload) -> RawPayload:
 # --- wrong content type -----------------------------------------------------
 
 
-@pytest.mark.parametrize("adapter", [sleeper_players, sleeper_projections, ffcalc_adp])
+@pytest.mark.parametrize("adapter", [sleeper_players, sleeper_projections])
 def test_non_json_content_type_is_rejected(adapter):
     with pytest.raises(SourceError, match="expected JSON"):
         adapter.validate(RawPayload(body=b"{}", content_type="text/html"))
+
+
+def test_ffcalc_accepts_json_mislabeled_as_html():
+    # FFC's Cloudflare cache serves the JSON payload as text/html; the body
+    # is what matters.
+    body = json.dumps({"status": "Success", "players": [{"name": "A", "adp": 1.0}]}).encode()
+    ffcalc_adp.validate(RawPayload(body=body, content_type="text/html; charset=utf-8"))
+
+
+def test_ffcalc_rejects_a_body_that_is_not_json():
+    with pytest.raises(SourceError, match="expected JSON, got text/html"):
+        ffcalc_adp.validate(RawPayload(body=b"<html>error</html>", content_type="text/html"))
+
+
+def test_ffcalc_rejects_a_non_mapping_json_body():
+    with pytest.raises(SourceError, match="status/players"):
+        ffcalc_adp.validate(RawPayload(body=b"[]", content_type="application/json"))
 
 
 # --- malformed bodies -------------------------------------------------------

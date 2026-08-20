@@ -23,6 +23,9 @@ ttl = timedelta(hours=3)
 # draftkit scoring preset -> FFC format path segment
 FORMATS = {"standard": "standard", "half_ppr": "half-ppr", "ppr": "ppr", "2qb": "2qb"}
 
+# FFC position label -> canonical (Sleeper) position
+_POSITIONS = {"DST": "DEF", "PK": "K"}
+
 
 def request(params: dict[str, Any]) -> RequestSpec:
     fmt = FORMATS[params.get("format", "half_ppr")]
@@ -34,10 +37,13 @@ def request(params: dict[str, Any]) -> RequestSpec:
 
 
 def validate(raw: RawPayload) -> None:
-    if "json" not in raw.content_type:
-        raise SourceError(f"expected JSON, got {raw.content_type}")
-    data = json.loads(raw.body)
-    if data.get("status") != "Success" or not data.get("players"):
+    # FFC serves its JSON from a Cloudflare cache that labels it text/html,
+    # so the body decides whether the payload is usable, not the header.
+    try:
+        data = json.loads(raw.body)
+    except ValueError as exc:
+        raise SourceError(f"expected JSON, got {raw.content_type}") from exc
+    if not isinstance(data, dict) or data.get("status") != "Success" or not data.get("players"):
         raise SourceError("FFC response missing status/players")
 
 
@@ -50,7 +56,7 @@ def parse(raw: RawPayload) -> SourceDataset:
             {
                 "ffc_id": p.get("player_id"),
                 "name": p["name"],
-                "position": "DEF" if p.get("position") == "DST" else p.get("position"),
+                "position": _POSITIONS.get(p.get("position"), p.get("position")),
                 "team": p.get("team"),
                 "adp": p.get("adp"),
                 "stdev": p.get("stdev"),
