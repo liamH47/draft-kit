@@ -164,6 +164,30 @@ table.pool th:last-child {
 button.mine { background: var(--steal); color: #fff; border: 1px solid var(--steal); border-radius: 3px; }
 .note { cursor: help; }
 
+/* --- snake draft board --- */
+.snake-wrap { border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem 0.75rem; margin: 0 0 0.9rem; }
+.snake-wrap summary { cursor: pointer; font-size: 0.9rem; }
+.snake-wrap .summary-note { margin-left: 0.5rem; font-size: 0.8rem; opacity: 0.65; }
+.snake-scroll { overflow-x: auto; margin: 0.5rem 0 0.3rem; }
+table.snake { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: 0.68rem; }
+table.snake th { font-weight: 600; font-size: 0.68rem; opacity: 0.7; padding: 0.1rem; text-align: center; }
+table.snake thead th.me { opacity: 1; color: var(--steal); }
+table.snake tbody th { width: 1.3rem; }
+table.snake td {
+  border: 1px solid var(--line); padding: 0.18rem 0.25rem; height: 1.5rem;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center;
+}
+table.snake td.empty { opacity: 0.4; }
+table.snake td.current { outline: 2px solid var(--steal); outline-offset: -2px; }
+table.snake td.mine { font-weight: 700; }
+/* position = color, the way a wall board reads at a glance */
+td.p-qb { background: rgba(214, 69, 69, 0.2); }
+td.p-rb { background: rgba(106, 155, 95, 0.24); }
+td.p-wr { background: rgba(74, 127, 165, 0.24); }
+td.p-te { background: rgba(224, 123, 57, 0.22); }
+td.p-k { background: rgba(140, 100, 180, 0.22); }
+td.p-def { background: rgba(120, 110, 100, 0.24); }
+
 /* --- recommendations --- */
 .recs { list-style: none; padding: 0; margin: 0 0 1.5rem; }
 .recs li { padding: 0.6rem 0; border-top: 1px solid var(--line); }
