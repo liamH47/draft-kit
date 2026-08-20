@@ -72,12 +72,19 @@ class Recommendation:
 
 
 def _need_factor(position: str, my_counts: dict[str, int], starters: dict[str, float]) -> float:
-    """1.0 when no starting slot at the position is filled, 0.0 once they are."""
+    """Need in unfilled-slot units, saturating at two slots.
+
+    Normalizing by fraction-of-position-filled made every single-slot position
+    a binary cliff: "1 of 1 QB empty" paid the same full bonus as "all WR
+    slots empty", never decayed, and mid-draft that flat subsidy outbid real
+    value gaps (two QBs in one top five). Counting slots instead makes needing
+    your one QB half as needy as needing two WR starters — and superflex QB
+    (two slots) earns the full bonus without a special case."""
     needed = starters.get(position, 0.0)
     if needed <= 0:
         return 0.0
     filled = my_counts.get(position, 0)
-    return max(0.0, (needed - filled) / needed)
+    return min(max(needed - filled, 0.0), 2.0) / 2.0
 
 
 def _real_starters_filled(my_counts: dict[str, int], league, late_positions: list[str]) -> bool:

@@ -72,16 +72,19 @@ def test_undo_puts_a_player_back_on_the_board(client, session):
 def test_tags_reach_the_board_and_move_recommendations(client, session):
     lid = session["league_id"]
     data = board(client, session)
-    # Take someone outside the top 5 and tag him a target.
-    ranked = [r["player_id"] for r in data["recommendations"]]
-    outsider = next(p for p in data["available"] if p["player_id"] not in ranked)
-    client.put(f"/api/leagues/{lid}/tags/{outsider['player_id']}", json={"tag": "target"})
+    # Tag the runner-up recommendation: the tag must reach his board row, his
+    # recommendation reasons, and lift him over the old #1. (Whether a tag can
+    # promote an arbitrary outsider is engine maths, unit-tested — an API test
+    # that depended on the exact score gaps broke every time the model moved.)
+    target = data["recommendations"][1]["player_id"]
+    client.put(f"/api/leagues/{lid}/tags/{target}", json={"tag": "target"})
 
     tagged = board(client, session)
-    row = next(p for p in tagged["available"] if p["player_id"] == outsider["player_id"])
+    row = next(p for p in tagged["available"] if p["player_id"] == target)
     assert row["tag"] == "target"
-    promoted = next(r for r in tagged["recommendations"] if r["player_id"] == outsider["player_id"])
+    promoted = next(r for r in tagged["recommendations"] if r["player_id"] == target)
     assert "you tagged him a target" in promoted["reasons"]
+    assert tagged["recommendations"][0]["player_id"] == target
 
 
 def test_fade_tag_removes_a_player_from_the_top_recommendations(client, session):

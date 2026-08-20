@@ -62,6 +62,14 @@ def test_need_bonus_disappears_once_slots_are_filled():
     assert not any("still need" in r for r in full.reasons)
 
 
+def test_single_slot_need_is_half_a_two_slot_need():
+    # Needing your one QB must not outbid needing two RB starters: need is
+    # measured in unfilled slots (capped at two), not fraction of position.
+    qb = rec([cand("qb", "QB", 20)], my_counts={})[0]
+    rb = rec([cand("rb", "RB", 20)], my_counts={})[0]
+    assert qb.score < rb.score
+
+
 def test_flex_need_is_named_flex_not_a_contradiction():
     # Dedicated RB slots full, but the flex share keeps need > 0. The reason
     # must say "flex", never the self-contradictory "(2/2 filled)".
