@@ -12,6 +12,28 @@ def blend_adp(adp_by_source: dict[str, float], weights: dict[str, float]) -> flo
     return round(sum(v * weights.get(s, 1.0) for s, v in present.items()) / total_weight, 1)
 
 
+# How much each ranking list counts toward the consensus a player is shown
+# against. ESPN's list is the order half a room actually drafts off; Boris
+# Chen's expert rank is deliberately held at half weight.
+CONSENSUS_WEIGHTS = {"espn": 1.0, "expert": 0.5}
+
+
+def consensus_rank(
+    rank_by_source: dict[str, float], weights: dict[str, float] | None = None
+) -> float | None:
+    """Weighted mean of the ranking lists we hold. Display-only: it exists so
+    the user can SEE when the model disagrees with the room's consensus, and
+    it must never feed the score — ADP already carries the market's opinion,
+    and a second helping would double-count it."""
+    weights = CONSENSUS_WEIGHTS if weights is None else weights
+    if not rank_by_source:
+        return None
+    total = sum(weights.get(s, 1.0) for s in rank_by_source)
+    if total <= 0:
+        return None
+    return round(sum(r * weights.get(s, 1.0) for s, r in rank_by_source.items()) / total, 1)
+
+
 def list_vs_market(rank_by_source: dict[str, float], blended_adp: float | None) -> float | None:
     """How far a player's ranking lists sit from where he actually goes.
 
