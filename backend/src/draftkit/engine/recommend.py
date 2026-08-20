@@ -8,6 +8,9 @@ sum of interpretable parts:
   roster need       — unfilled starting slots, decaying as they fill
   ADP value         — is he falling past his market price, or a reach?
   tier urgency      — will this tier survive until my next turn?
+  list vs market    — a small nudge: where the room's own list disagrees with
+                      the market, weighted down because it predicts behaviour
+                      rather than measuring value
   late-round hold   — kickers and defenses wait until the end of the draft
   your own tags     — target / at-ADP / fade override the market entirely
 
@@ -30,6 +33,11 @@ LATE_ROUND_PENALTY = 60.0
 # ...unless he is a genuine outlier at the position. Kickers and defenses
 # cluster tightly, so clearing this much over replacement is rare and real.
 LATE_ROUND_ELITE_VORP = 25.0
+# Deliberately the smallest term in the model. A ranking list predicts who gets
+# taken, not who is good, and the projections already answer the second
+# question — so this breaks ties and never decides a pick on its own.
+LIST_VALUE_PER_PICK = 0.15
+LIST_VALUE_CAP = 5.0
 
 
 @dataclass
@@ -42,6 +50,10 @@ class Candidate:
     adp: float | None = None
     tier: int | None = None
     tag: str | None = None
+    # Positive when ranking lists sit above the market on him: list-followers
+    # (autodrafters, anyone drafting off the platform's default order) reach for
+    # him sooner than the market would.
+    list_vs_market: float | None = None
 
 
 @dataclass
@@ -83,10 +95,19 @@ def recommend(
     picks_until_turn: int | None,
     current_round: int = 1,
     total_rounds: int = 15,
+    autodraft_count: int = 0,
     limit: int = 5,
 ) -> list[Recommendation]:
     starters = starters_by_position(league.roster)
     late_positions = list(league.late_round_positions)
+
+    # Autodrafters walk a ranking list; they do not panic, chase runs or reach.
+    # So the pressure between now and your next turn comes only from the humans,
+    # and a room that is half robots is far calmer than the raw pick count says.
+    human_share = 1.0
+    if autodraft_count and league.num_teams:
+        human_share = max(0.0, (league.num_teams - autodraft_count) / league.num_teams)
+    human_until_turn = None if picks_until_turn is None else round(picks_until_turn * human_share)
     rounds_left = total_rounds - current_round + 1
     # Inside the tail of the draft, kickers and defenses score normally.
     in_late_window = rounds_left <= league.late_round_window
@@ -142,14 +163,34 @@ def recommend(
             elif delta <= -6:
                 reasons.append(f"a reach — ADP {c.adp:.0f} vs pick {current_pick}")
 
-        if c.tier is not None and picks_until_turn and not held_back:
+        if c.tier is not None and human_until_turn and not held_back:
             left = tier_counts.get((c.position, c.tier), 0)
-            if left <= picks_until_turn:
-                score += TIER_URGENCY_BONUS
+            if left <= human_until_turn:
+                score += TIER_URGENCY_BONUS * human_share
                 plural = "player" if left == 1 else "players"
+                detail = (
+                    f"{human_until_turn} human picks until your turn"
+                    if autodraft_count
+                    else f"{picks_until_turn} picks until your turn"
+                )
+                reasons.append(f"only {left} {plural} left in {c.position} tier {c.tier}, {detail}")
+
+        # Smallest term in the model, and the only one about other people.
+        if c.list_vs_market is not None and not held_back:
+            nudge = max(
+                -LIST_VALUE_CAP,
+                min(LIST_VALUE_CAP, c.list_vs_market * LIST_VALUE_PER_PICK),
+            )
+            score += nudge
+            if c.list_vs_market <= -12:
                 reasons.append(
-                    f"only {left} {plural} left in {c.position} tier {c.tier}, "
-                    f"{picks_until_turn} picks until your turn"
+                    f"list-followers reach for him — ranked ~{abs(c.list_vs_market):.0f} "
+                    "picks above his market price"
+                )
+            elif c.list_vs_market >= 12:
+                reasons.append(
+                    f"the lists are cold on him — he often lasts "
+                    f"~{c.list_vs_market:.0f} picks past his rank"
                 )
 
         if c.tag:

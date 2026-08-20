@@ -1,0 +1,385 @@
+[
+ {
+  "id": 4429795,
+  "player": {
+   "id": 4429795,
+   "fullName": "Jahmyr Gibbs",
+   "defaultPositionId": 2,
+   "ownership": {
+    "averageDraftPosition": 3.1,
+    "auctionValueAverage": 58.8,
+    "percentOwned": 98.1
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 2,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 2,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4430807,
+  "player": {
+   "id": 4430807,
+   "fullName": "Bijan Robinson",
+   "defaultPositionId": 2,
+   "ownership": {
+    "averageDraftPosition": 4.0,
+    "auctionValueAverage": 58.4,
+    "percentOwned": 97.8
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 3,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 3,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4362628,
+  "player": {
+   "id": 4362628,
+   "fullName": "Ja'Marr Chase",
+   "defaultPositionId": 3,
+   "ownership": {
+    "averageDraftPosition": 2.2,
+    "auctionValueAverage": 59.1,
+    "percentOwned": 98.3
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 1,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 1,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 3117251,
+  "player": {
+   "id": 3117251,
+   "fullName": "Christian McCaffrey",
+   "defaultPositionId": 2,
+   "ownership": {
+    "averageDraftPosition": 8.4,
+    "auctionValueAverage": 56.6,
+    "percentOwned": 96.5
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 6,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 6,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4426515,
+  "player": {
+   "id": 4426515,
+   "fullName": "Puka Nacua",
+   "defaultPositionId": 3,
+   "ownership": {
+    "averageDraftPosition": 14.9,
+    "auctionValueAverage": 54.0,
+    "percentOwned": 94.5
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 12,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 12,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4374302,
+  "player": {
+   "id": 4374302,
+   "fullName": "Amon-Ra St. Brown",
+   "defaultPositionId": 3,
+   "ownership": {
+    "averageDraftPosition": 15.2,
+    "auctionValueAverage": 53.9,
+    "percentOwned": 94.4
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 14,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 14,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4430878,
+  "player": {
+   "id": 4430878,
+   "fullName": "Jaxon Smith-Njigba",
+   "defaultPositionId": 3,
+   "ownership": {
+    "averageDraftPosition": 13.0,
+    "auctionValueAverage": 54.8,
+    "percentOwned": 95.1
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 18,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 18,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4047646,
+  "player": {
+   "id": 4047646,
+   "fullName": "A.J. Brown",
+   "defaultPositionId": 3,
+   "ownership": {
+    "averageDraftPosition": 16.1,
+    "auctionValueAverage": 53.6,
+    "percentOwned": 94.2
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 11,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 11,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4379399,
+  "player": {
+   "id": 4379399,
+   "fullName": "James Cook",
+   "defaultPositionId": 2,
+   "ownership": {
+    "averageDraftPosition": 22.5,
+    "auctionValueAverage": 51.0,
+    "percentOwned": 92.2
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 40,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 40,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4567048,
+  "player": {
+   "id": 4567048,
+   "fullName": "Kenneth Walker III",
+   "defaultPositionId": 2,
+   "ownership": {
+    "averageDraftPosition": 30.2,
+    "auctionValueAverage": 47.9,
+    "percentOwned": 89.9
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 25,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 25,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4432665,
+  "player": {
+   "id": 4432665,
+   "fullName": "Brock Bowers",
+   "defaultPositionId": 4,
+   "ownership": {
+    "averageDraftPosition": 19.8,
+    "auctionValueAverage": 52.1,
+    "percentOwned": 93.1
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 16,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 16,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 4361307,
+  "player": {
+   "id": 4361307,
+   "fullName": "Trey McBride",
+   "defaultPositionId": 4,
+   "ownership": {
+    "averageDraftPosition": 24.0,
+    "auctionValueAverage": 50.4,
+    "percentOwned": 91.8
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 21,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 21,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 3918298,
+  "player": {
+   "id": 3918298,
+   "fullName": "Josh Allen",
+   "defaultPositionId": 1,
+   "ownership": {
+    "averageDraftPosition": 27.6,
+    "auctionValueAverage": 49.0,
+    "percentOwned": 90.7
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 30,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 30,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 3916387,
+  "player": {
+   "id": 3916387,
+   "fullName": "Lamar Jackson",
+   "defaultPositionId": 1,
+   "ownership": {
+    "averageDraftPosition": 31.0,
+    "auctionValueAverage": 47.6,
+    "percentOwned": 89.7
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 28,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 28,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": 3953687,
+  "player": {
+   "id": 3953687,
+   "fullName": "Brandon Aubrey",
+   "defaultPositionId": 5,
+   "ownership": {
+    "averageDraftPosition": 120.0,
+    "auctionValueAverage": 12.0,
+    "percentOwned": 63.0
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 140,
+     "auctionValue": 0
+    },
+    "STANDARD": {
+     "rank": 140,
+     "auctionValue": 0
+    }
+   }
+  }
+ },
+ {
+  "id": -16025,
+  "player": {
+   "id": -16025,
+   "fullName": "San Francisco 49ers",
+   "defaultPositionId": 16,
+   "ownership": {
+    "averageDraftPosition": 95.0,
+    "percentOwned": 60.0
+   },
+   "draftRanksByRankType": {
+    "PPR": {
+     "rank": 100
+    }
+   }
+  }
+ },
+ {
+  "id": 999999,
+  "player": {
+   "id": 999999,
+   "fullName": "Some Punter",
+   "defaultPositionId": 7,
+   "ownership": {
+    "averageDraftPosition": 0.0
+   }
+  }
+ },
+ {
+  "id": 888888,
+  "player": {
+   "id": 888888,
+   "fullName": "Deep Sleeper",
+   "defaultPositionId": 3,
+   "ownership": {},
+   "draftRanksByRankType": {}
+  }
+ }
+]

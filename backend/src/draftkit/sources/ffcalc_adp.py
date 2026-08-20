@@ -10,6 +10,13 @@ from typing import Any
 
 from draftkit.sources.base import RawPayload, RequestSpec, SourceDataset, SourceError
 
+TITLE = "Fantasy Football Calculator ADP"
+HOMEPAGE = "https://fantasyfootballcalculator.com/adp"
+AUTH = "none"
+ATTRIBUTION = "ADP data from Fantasy Football Calculator."
+NATIVE_ID = "ffc_id"
+KIND = "market"
+PROVIDES = ["adp", "stdev", "high", "low", "times_drafted", "bye"]
 name = "ffcalc"
 ttl = timedelta(hours=3)
 

@@ -11,6 +11,13 @@ from typing import Any
 from draftkit.models.player import FANTASY_POSITIONS
 from draftkit.sources.base import RawPayload, RequestSpec, SourceDataset, SourceError
 
+TITLE = "Sleeper player universe"
+HOMEPAGE = "https://docs.sleeper.com/"
+AUTH = "none"
+ATTRIBUTION = "Player data from the public Sleeper API."
+NATIVE_ID = "sleeper_id"
+KIND = "identity"
+PROVIDES = ["name", "position", "team", "status"]
 name = "sleeper_players"
 ttl = timedelta(hours=24)
 

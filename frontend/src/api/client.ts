@@ -33,6 +33,7 @@ export type LeagueDraft = {
   rounds: number
   scoring: ScoringPreset
   roster: RosterSlots
+  autodraft_count: number
 }
 
 export const api = {

@@ -42,6 +42,7 @@ export function SetupWizard() {
     rounds: 15,
     scoring: 'half_ppr',
     roster: DEFAULT_ROSTER,
+    autodraft_count: 0,
   })
   const [showRoster, setShowRoster] = useState(false)
 
@@ -166,7 +167,22 @@ export function SetupWizard() {
               onChange={(e) => set('rounds', Number(e.target.value))}
             />
           </label>
+          <label title="Seats that draft off the platform's list rather than by hand">
+            Autodrafters
+            <input
+              type="number"
+              min={0}
+              max={form.num_teams}
+              value={form.autodraft_count}
+              onChange={(e) => set('autodraft_count', Number(e.target.value))}
+            />
+          </label>
         </div>
+        <p className="slot-help">
+          Autodrafters follow the platform's ranking list, so they never start a
+          positional run. Saying how many there are stops the board telling you to
+          reach in a room where nobody else will.
+        </p>
 
         <button type="submit" disabled={create.isPending}>
           {create.isPending ? 'Starting…' : 'Start draft'}

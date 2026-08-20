@@ -11,6 +11,13 @@ from typing import Any
 
 from draftkit.sources.base import RawPayload, RequestSpec, SourceDataset, SourceError
 
+TITLE = "Sleeper projections + ADP"
+HOMEPAGE = "https://docs.sleeper.com/"
+AUTH = "none"
+ATTRIBUTION = "Projections and ADP from the public Sleeper API."
+NATIVE_ID = "sleeper_id"
+KIND = "projection"
+PROVIDES = ["stats", "adp_ppr", "adp_half_ppr", "adp_std", "adp_2qb"]
 name = "sleeper_projections"
 ttl = timedelta(hours=6)
 

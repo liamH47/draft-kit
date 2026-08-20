@@ -27,6 +27,19 @@ def rec(available, *, my_counts=None, current_pick=10, picks_until_turn=5, **kw)
     )
 
 
+def test_autodraft_count_is_ignored_without_teams():
+    """Guard the divide: a malformed league must not blow up the panel."""
+    out = recommend(
+        [cand("a", "RB", 20, tier=1)],
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        picks_until_turn=None,
+        autodraft_count=4,
+    )
+    assert out[0].player_id == "a"
+
+
 def test_ranks_by_vorp_when_all_else_equal():
     out = rec([cand("a", "RB", 10), cand("b", "RB", 40), cand("c", "RB", 25)])
     assert [r.player_id for r in out] == ["b", "c", "a"]
@@ -113,3 +126,61 @@ def test_at_adp_tag_is_neutral():
 
 def test_empty_pool_returns_nothing():
     assert rec([]) == []
+
+
+# --- list vs market: the smallest term, and the only one about other people --
+
+
+def test_list_followers_reaching_is_flagged():
+    """ESPN's list has him well above his market price, so autodrafters and
+    anyone on the default order take him early."""
+    out = rec([cand("x", "WR", 20, list_vs_market=-20.0)])
+    assert any("list-followers reach for him" in r for r in out[0].reasons)
+
+
+def test_a_player_the_lists_are_cold_on_is_flagged():
+    out = rec([cand("x", "WR", 20, list_vs_market=20.0)])
+    assert any("the lists are cold on him" in r for r in out[0].reasons)
+
+
+def test_small_list_disagreements_stay_quiet():
+    out = rec([cand("x", "WR", 20, list_vs_market=4.0)])
+    assert not any("list" in r for r in out[0].reasons)
+
+
+def test_the_list_nudge_cannot_outweigh_real_value():
+    """It predicts behaviour, not value, so it must never decide a pick."""
+    better = cand("better", "RB", 30)
+    nudged = cand("nudged", "RB", 20, list_vs_market=200.0)  # absurd, still capped
+    out = rec([better, nudged])
+    assert out[0].player_id == "better"
+
+
+def test_no_list_data_is_simply_no_term():
+    with_list = rec([cand("x", "RB", 20, list_vs_market=0.0)])[0]
+    without = rec([cand("x", "RB", 20)])[0]
+    assert with_list.score == without.score
+
+
+# --- autodrafters -----------------------------------------------------------
+
+
+def test_autodrafters_damp_tier_urgency():
+    """Half the room on autopilot cannot start a run, so the urgency to reach
+    is genuinely lower even though the pick count is unchanged."""
+    field = [cand("a", "RB", 20, tier=2), cand("b", "RB", 19, tier=2)]
+    humans = rec(field, picks_until_turn=8, autodraft_count=0)[0]
+    robots = rec(field, picks_until_turn=8, autodraft_count=6)[0]
+    assert robots.score < humans.score
+
+
+def test_urgency_reasons_count_humans_not_seats():
+    field = [cand("a", "RB", 20, tier=1), cand("b", "RB", 19, tier=1)]
+    out = rec(field, picks_until_turn=8, autodraft_count=6)
+    assert any("human picks until your turn" in r for r in out[0].reasons)
+
+
+def test_a_fully_automated_room_creates_no_urgency():
+    field = [cand("a", "RB", 20, tier=1)]
+    out = rec(field, picks_until_turn=8, autodraft_count=12)
+    assert not any("tier" in r for r in out[0].reasons)
