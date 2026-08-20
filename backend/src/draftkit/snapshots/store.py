@@ -129,9 +129,7 @@ class SnapshotStore:
         distinct."""
         if not self._root.is_dir():
             return ()
-        return tuple(
-            sorted((str(p), p.stat().st_mtime_ns) for p in self._root.glob("*/*/*.snap"))
-        )
+        return tuple(sorted((str(p), p.stat().st_mtime_ns) for p in self._root.glob("*/*/*.snap")))
 
     def ages(self) -> dict[str, float]:
         """Hours since the newest snapshot, per source dir — for /api/health."""

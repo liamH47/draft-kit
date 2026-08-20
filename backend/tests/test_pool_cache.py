@@ -37,9 +37,7 @@ def test_a_new_snapshot_invalidates(tmp_path, fixture_fetcher):
 def test_a_different_league_config_is_a_different_pool(tmp_path, fixture_fetcher):
     store = store_for(tmp_path, fixture_fetcher)
     twelve = build_pool_cached(store, league(), season=2026)
-    eight = build_pool_cached(
-        store, league(num_teams=8, roster=RosterSlots(wr=3)), season=2026
-    )
+    eight = build_pool_cached(store, league(num_teams=8, roster=RosterSlots(wr=3)), season=2026)
     assert eight is not twelve
 
 
