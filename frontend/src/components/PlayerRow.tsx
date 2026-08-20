@@ -9,7 +9,7 @@ const TAGS: { value: Tag; label: string; title: string }[] = [
 
 type Props = {
   player: PoolPlayer
-  onDraft?: (playerId: string, isMine: boolean) => void
+  onDraft?: (playerId: string, isMine: boolean | null, name?: string) => void
   onTag?: (playerId: string, tag: Tag | null) => void
 }
 

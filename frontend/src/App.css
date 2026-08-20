@@ -33,6 +33,29 @@
 .leagues { list-style: none; padding: 0; }
 .leagues li { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
 
+/* --- roster settings disclosure --- */
+.roster-settings {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+}
+.roster-settings summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+  list-style: revert;
+}
+.summary-note { margin-left: 0.5rem; opacity: 0.6; font-size: 0.85em; }
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.2rem, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.slot-grid label { gap: 0.15rem; font-size: 0.8rem; }
+.slot-grid label em { font-style: normal; opacity: 0.55; font-size: 0.9em; }
+.slot-grid input { padding: 0.3rem; text-align: center; }
+.slot-help { margin: 0.6rem 0 0; font-size: 0.8rem; opacity: 0.7; }
+
 /* --- draft board --- */
 .board { padding: 0.75rem 1rem 3rem; }
 .topbar {
@@ -136,3 +159,17 @@ table.roster .count { opacity: 0.6; font-weight: 400; }
 .sheet-head { display: flex; align-items: baseline; justify-content: space-between; }
 .sheet-controls { display: flex; align-items: center; gap: 1rem; margin: 0.75rem 0; }
 .toggle { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }
+
+/* --- action feedback --- */
+.notice {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin: 0.6rem 0; padding: 0.45rem 0.75rem; border-radius: 4px; font-size: 0.9rem;
+}
+.notice.ok { background: rgba(46, 158, 79, 0.12); border-left: 3px solid var(--steal); }
+.notice.error { background: rgba(192, 57, 43, 0.12); border-left: 3px solid var(--reach); font-weight: 600; }
+.notice .dismiss { margin-left: auto; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
+.pick-log { list-style: none; margin: 0 0 1.5rem; padding: 0; font-size: 0.85rem; }
+.pick-log li { padding: 0.15rem 0; border-top: 1px solid var(--line); }
+.pick-log li.mine { font-weight: 700; }
+.pick-log .no { display: inline-block; min-width: 2.6rem; opacity: 0.55; font-variant-numeric: tabular-nums; }
+.pick-log em { font-style: normal; color: var(--steal); }

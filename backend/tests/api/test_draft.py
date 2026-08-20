@@ -174,3 +174,29 @@ def test_tags_set_before_the_draft_are_visible_during_it(tmp_path):
 
 def test_events_endpoint_requires_a_real_session(client):
     assert client.get("/api/sessions/999/events").status_code == 404
+
+
+def test_pick_ownership_is_derived_from_the_slot_when_unspecified(client):
+    """Plain Enter sends is_mine=null; the server decides from whose slot is on
+    the clock. Otherwise muscle memory files your own pick as a rival's."""
+    league = make_league(client, num_teams=12, my_slot=3)
+    sid = make_session(client, league["id"])["session"]["id"]
+
+    for i in range(2):  # slots 1 and 2
+        resp = client.post(f"/api/sessions/{sid}/picks", json={"player_id": f"p{i}"})
+        assert resp.json()["pick"]["is_mine"] is False
+
+    mine = client.post(f"/api/sessions/{sid}/picks", json={"player_id": "third"}).json()
+    assert mine["pick"]["slot"] == 3
+    assert mine["pick"]["is_mine"] is True
+    assert mine["my_player_ids"] == ["third"]
+
+
+def test_explicit_ownership_still_overrides(client):
+    league = make_league(client, num_teams=12, my_slot=12)
+    sid = make_session(client, league["id"])["session"]["id"]
+    forced = client.post(
+        f"/api/sessions/{sid}/picks", json={"player_id": "x", "is_mine": True}
+    ).json()
+    assert forced["pick"]["slot"] == 1  # not my slot...
+    assert forced["pick"]["is_mine"] is True  # ...but I said it was mine

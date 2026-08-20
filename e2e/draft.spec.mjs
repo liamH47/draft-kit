@@ -83,16 +83,25 @@ await page.waitForFunction(
 await page.screenshot({ path: `${SHOTS}/4-my-pick.png`, fullPage: true })
 
 // --- tagging feeds recommendations --------------------------------------
-const targetRow = page.locator('table.pool tbody tr').nth(6)
+// Tag the top remaining player, who is certain to be in the recommendation
+// list, so this asserts the tag->reason wiring rather than the score maths
+// (promotion from further down the board is covered by unit tests).
+const targetRow = page.locator('table.pool tbody tr').first()
 const targetName = await targetRow.locator('.name-cell').innerText()
 await targetRow.locator('button.tag').first().click()
 await page.waitForFunction(
-  (name) => document.querySelector('.recs')?.textContent?.includes(name),
-  targetName,
+  () => document.querySelector('.recs')?.textContent?.includes('tagged him a target'),
+  null,
+  { timeout: 10000 },
 )
 const recText = await page.locator('.recs').innerText()
-assert.ok(recText.includes('tagged him a target'), 'tag must show up as a reason')
+assert.ok(recText.includes(targetName.trim()), `${targetName} should still be recommended`)
 await page.screenshot({ path: `${SHOTS}/5-tagged.png`, fullPage: true })
+
+// --- the pick log records what happened ----------------------------------
+const logText = await page.locator('.pick-log').innerText()
+assert.ok(/#\d+/.test(logText), 'pick log should show numbered picks')
+assert.ok(logText.includes('you'), 'your own pick should be marked in the log')
 
 // --- undo ----------------------------------------------------------------
 const beforeUndo = await page.locator('table.pool tbody tr').count()

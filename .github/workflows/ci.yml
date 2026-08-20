@@ -18,7 +18,7 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pyright
-      - run: uv run pytest
+      - run: uv run pytest  # coverage gate is in pyproject addopts
 
   frontend:
     runs-on: ubuntu-latest

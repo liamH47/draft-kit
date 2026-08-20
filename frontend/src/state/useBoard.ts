@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { api } from '../api/client'
 import type { Tag } from '../api/types'
@@ -27,20 +27,44 @@ export function useSessionEvents(sessionId: number) {
   }, [sessionId, queryClient])
 }
 
+export type Notice = { kind: 'ok' | 'error'; text: string }
+
 export function useDraftActions(sessionId: number, leagueId: number | undefined) {
   const queryClient = useQueryClient()
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['board', sessionId] })
+  // A failed entry that clears the box silently is how the board drifts out of
+  // sync with the room, so every action reports what happened.
+  const [notice, setNotice] = useState<Notice | null>(null)
 
   const draft = useMutation({
-    mutationFn: ({ playerId, isMine }: { playerId: string; isMine: boolean }) =>
-      api.draftPlayer(sessionId, playerId, isMine),
-    onSuccess: invalidate,
+    mutationFn: ({
+      playerId,
+      isMine,
+    }: {
+      playerId: string
+      isMine: boolean | null
+      name?: string
+    }) => api.draftPlayer(sessionId, playerId, isMine),
+    onSuccess: (_data, vars) => {
+      setNotice({ kind: 'ok', text: `Recorded ${vars.name ?? 'pick'}` })
+      invalidate()
+    },
+    onError: (err: Error, vars) =>
+      setNotice({ kind: 'error', text: `${vars.name ?? 'Pick'} NOT recorded — ${err.message}` }),
   })
-  const undo = useMutation({ mutationFn: () => api.undo(sessionId), onSuccess: invalidate })
+  const undo = useMutation({
+    mutationFn: () => api.undo(sessionId),
+    onSuccess: () => {
+      setNotice({ kind: 'ok', text: 'Undid the last pick' })
+      invalidate()
+    },
+    onError: (err: Error) => setNotice({ kind: 'error', text: `Undo failed — ${err.message}` }),
+  })
   const tag = useMutation({
     mutationFn: ({ playerId, value }: { playerId: string; value: Tag | null }) =>
       api.setTag(leagueId!, playerId, value),
     onSuccess: invalidate,
+    onError: (err: Error) => setNotice({ kind: 'error', text: `Tag failed — ${err.message}` }),
   })
-  return { draft, undo, tag }
+  return { draft, undo, tag, notice, clearNotice: () => setNotice(null) }
 }

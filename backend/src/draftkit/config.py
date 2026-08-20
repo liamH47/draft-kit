@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     static_dir: Path | None = None  # set in prod to the built frontend dist/
     cors_origins: list[str] = []  # dev only; prod is same-origin
     season: int = 2026  # NFL season for projections/ADP
+    # Pin every source read to disk. Set this during a live draft so a lapsed
+    # TTL can never turn a board refresh into a blocking network fetch.
+    offline: bool = False
 
     @property
     def db_path(self) -> Path:

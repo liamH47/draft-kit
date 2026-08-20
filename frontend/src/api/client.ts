@@ -13,6 +13,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return resp.json() as Promise<T>
 }
 
+export type RosterSlots = {
+  qb: number
+  rb: number
+  wr: number
+  te: number
+  flex: number
+  superflex: number
+  k: number
+  dst: number
+  bench: number
+}
+
 export type LeagueDraft = {
   name: string
   platform: string
@@ -20,6 +32,7 @@ export type LeagueDraft = {
   my_slot: number
   rounds: number
   scoring: ScoringPreset
+  roster: RosterSlots
 }
 
 export const api = {
@@ -39,7 +52,8 @@ export const api = {
 
   board: (sessionId: number) => request<Board>(`/api/sessions/${sessionId}/board`),
 
-  draftPlayer: (sessionId: number, playerId: string, isMine: boolean) =>
+  // isMine null = let the server decide from whose slot is on the clock.
+  draftPlayer: (sessionId: number, playerId: string, isMine: boolean | null) =>
     request<unknown>(`/api/sessions/${sessionId}/picks`, {
       method: 'POST',
       body: JSON.stringify({ player_id: playerId, is_mine: isMine }),
