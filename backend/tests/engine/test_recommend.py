@@ -102,6 +102,18 @@ def test_adp_value_is_capped():
     assert 0 < small.score < 12.0
 
 
+def test_reaches_keep_hurting_past_the_value_cap():
+    # A 3-round reach must cost real points, not the same -12 as a 20-pick one
+    # — that symmetry was how an ADP-127 TE topped the board at pick 79.
+    filled = {"WR": 5}
+    reach_20 = rec([cand("x", "WR", 0, adp=60.0)], my_counts=filled, current_pick=40)[0]
+    reach_48 = rec([cand("x", "WR", 0, adp=88.0)], my_counts=filled, current_pick=40)[0]
+    assert reach_48.score < reach_20.score
+    # ...but the reach side saturates too, eventually.
+    reach_absurd = rec([cand("x", "WR", 0, adp=300.0)], my_counts=filled, current_pick=40)[0]
+    assert reach_absurd.score == -30.0
+
+
 def test_tier_about_to_empty_is_urgent():
     # Two players left in RB tier 2 and 5 picks until my turn -> urgent.
     scarce = rec(
