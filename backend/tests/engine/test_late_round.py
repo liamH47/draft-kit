@@ -59,10 +59,16 @@ def held_back(out) -> bool:
     return any("wait on" in reason for r in out for reason in r.reasons)
 
 
+# A plausible late-middle-rounds roster that keeps the hold in play: an empty
+# roster there would (correctly) trip the must-fill override, and a complete
+# skill lineup would (correctly) declare starters set — TE stays open.
+MID_DRAFT = {"QB": 1, "RB": 3, "WR": 3, "TE": 0}
+
+
 def test_window_boundary_is_exact():
     # 15 rounds with a window of 3: rounds 13-15 are fair game, round 12 is not.
-    assert held_back(rec(FIELD, current_round=12))
-    assert not held_back(rec(FIELD, current_round=13))
+    assert held_back(rec(FIELD, my_counts=MID_DRAFT, current_round=12))
+    assert not held_back(rec(FIELD, my_counts=MID_DRAFT, current_round=13))
 
 
 def test_no_tier_urgency_or_need_bonus_while_held_back():
@@ -80,6 +86,21 @@ def test_escape_hatch_roster_otherwise_set():
     kicker = next(r for r in out if r.player_id == "k")
     assert "your starters are set, so this is a fine time" in kicker.reasons
     assert kicker.score > 0
+
+
+def test_starters_set_counts_flex_by_surplus():
+    # 7 skill slots (1QB/2RB/2WR/1TE + flex) filled by exactly 7 players. The
+    # old fractional check demanded 3RB+3WR+2TE = 9 before conceding, firing
+    # two rounds late.
+    seven = {"QB": 1, "RB": 3, "WR": 2, "TE": 1}
+    out = rec(FIELD, my_counts=seven, current_round=8)
+    kicker = next(r for r in out if r.player_id == "k")
+    assert "your starters are set, so this is a fine time" in kicker.reasons
+
+    # Surplus at one position cannot cover a dedicated slot at another.
+    lopsided = {"QB": 1, "RB": 4, "WR": 1, "TE": 1}
+    held = rec(FIELD, my_counts=lopsided, current_round=8)
+    assert any("wait on K" in r for rec_ in held for r in rec_.reasons)
 
 
 def test_escape_hatch_elite_outlier():
@@ -101,9 +122,9 @@ def test_held_positions_keep_their_order_relative_to_each_other():
 def test_the_hold_is_configurable():
     cfg = league(late_round_positions=["K"], late_round_window=5)
     # DEF is no longer held at all; K is fair game from round 11 with window 5.
-    assert not held_back(rec(FIELD, cfg=cfg, current_round=11))
+    assert not held_back(rec(FIELD, cfg=cfg, my_counts=MID_DRAFT, current_round=11))
 
-    early = rec(FIELD, cfg=cfg, current_round=9)
+    early = rec(FIELD, cfg=cfg, my_counts=MID_DRAFT, current_round=9)
     assert any("wait on K" in reason for r in early for reason in r.reasons)
     assert not any("wait on DEF" in reason for r in early for reason in r.reasons)
 

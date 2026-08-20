@@ -62,14 +62,23 @@ def test_need_bonus_disappears_once_slots_are_filled():
     assert not any("still need" in r for r in full.reasons)
 
 
+def test_flex_need_is_named_flex_not_a_contradiction():
+    # Dedicated RB slots full, but the flex share keeps need > 0. The reason
+    # must say "flex", never the self-contradictory "(2/2 filled)".
+    out = rec([cand("rb", "RB", 30)], my_counts={"RB": 2})
+    assert any("flex is still open" in r for r in out[0].reasons)
+    assert not any("still need" in r for r in out[0].reasons)
+
+
 def test_faller_is_flagged_as_value():
-    out = rec([cand("x", "WR", 20, adp=40.0)], current_pick=20)
-    assert any("falling" in r and "ADP 40" in r for r in out[0].reasons)
+    # ADP 5 still on the board at pick 20: he has fallen 15 picks.
+    out = rec([cand("x", "WR", 20, adp=5.0)], current_pick=20)
+    assert any("falling" in r and "ADP 5" in r for r in out[0].reasons)
 
 
 def test_reach_is_flagged_and_penalised():
-    faller = rec([cand("x", "WR", 20, adp=40.0)], current_pick=20)[0]
-    reacher = rec([cand("x", "WR", 20, adp=5.0)], current_pick=20)[0]
+    faller = rec([cand("x", "WR", 20, adp=5.0)], current_pick=20)[0]
+    reacher = rec([cand("x", "WR", 20, adp=40.0)], current_pick=20)[0]
     assert reacher.score < faller.score
     assert any("a reach" in r for r in reacher.reasons)
 
@@ -77,11 +86,11 @@ def test_reach_is_flagged_and_penalised():
 def test_adp_value_is_capped():
     # Fill the WR slots so the need bonus doesn't muddy the comparison.
     filled = {"WR": 5}
-    at_cap = rec([cand("x", "WR", 0, adp=40.0)], my_counts=filled, current_pick=20)[0]
-    absurd = rec([cand("x", "WR", 0, adp=400.0)], my_counts=filled, current_pick=20)[0]
+    at_cap = rec([cand("x", "WR", 0, adp=20.0)], my_counts=filled, current_pick=40)[0]
+    absurd = rec([cand("x", "WR", 0, adp=1.0)], my_counts=filled, current_pick=40)[0]
     assert absurd.score == at_cap.score == 12.0  # both pinned at the cap
     # A smaller fall earns a proportional, sub-cap bonus.
-    small = rec([cand("x", "WR", 0, adp=30.0)], my_counts=filled, current_pick=20)[0]
+    small = rec([cand("x", "WR", 0, adp=30.0)], my_counts=filled, current_pick=40)[0]
     assert 0 < small.score < 12.0
 
 
@@ -132,14 +141,15 @@ def test_empty_pool_returns_nothing():
 
 
 def test_list_followers_reaching_is_flagged():
-    """ESPN's list has him well above his market price, so autodrafters and
-    anyone on the default order take him early."""
-    out = rec([cand("x", "WR", 20, list_vs_market=-20.0)])
+    """Positive list_vs_market (ADP - rank) means the lists have him above his
+    market price, so autodrafters and anyone on the default order take him
+    early."""
+    out = rec([cand("x", "WR", 20, list_vs_market=20.0)])
     assert any("list-followers reach for him" in r for r in out[0].reasons)
 
 
 def test_a_player_the_lists_are_cold_on_is_flagged():
-    out = rec([cand("x", "WR", 20, list_vs_market=20.0)])
+    out = rec([cand("x", "WR", 20, list_vs_market=-20.0)])
     assert any("the lists are cold on him" in r for r in out[0].reasons)
 
 
@@ -160,6 +170,55 @@ def test_no_list_data_is_simply_no_term():
     with_list = rec([cand("x", "RB", 20, list_vs_market=0.0)])[0]
     without = rec([cand("x", "RB", 20)])[0]
     assert with_list.score == without.score
+
+
+# --- must-fill: the endgame cannot skip a mandatory slot --------------------
+
+
+def test_must_fill_forces_the_last_open_slot():
+    # Final pick, only K unfilled: the kicker outranks a higher-vorp bench body
+    # who would never start.
+    my = {"QB": 1, "RB": 5, "WR": 5, "TE": 2, "DEF": 1}
+    out = rec(
+        [cand("qb2", "QB", 25), cand("k", "K", 0)],
+        my_counts=my,
+        current_round=15,
+        total_rounds=15,
+    )
+    assert out[0].player_id == "k"
+    assert any("must fill K" in r for r in out[0].reasons)
+
+
+def test_must_fill_stays_quiet_while_there_is_slack():
+    out = rec(
+        [cand("k", "K", 0), cand("rb", "RB", 30)],
+        my_counts={},
+        current_round=1,
+        total_rounds=15,
+    )
+    assert out[0].player_id == "rb"
+    assert not any("must fill" in r for rec_ in out for r in rec_.reasons)
+
+
+def test_must_fill_overrides_the_late_round_hold():
+    # Round 11 of 15: five picks left and five dedicated slots empty, so the
+    # K/DEF hold must not bury the positions the roster now depends on.
+    my = {"RB": 2, "WR": 1}
+    out = rec(
+        [cand("k", "K", 0), cand("rb", "RB", 30)],
+        my_counts=my,
+        current_round=11,
+        total_rounds=15,
+    )
+    k = next(r for r in out if r.player_id == "k")
+    assert not any("wait on K" in r for r in k.reasons)
+    assert out[0].player_id == "k"
+
+
+def test_no_must_fill_once_the_lineup_is_full():
+    my = {"QB": 1, "RB": 5, "WR": 5, "TE": 2, "K": 1, "DEF": 1}
+    out = rec([cand("rb", "RB", 30)], my_counts=my, current_round=15, total_rounds=15)
+    assert not any("must fill" in r for r in out[0].reasons)
 
 
 # --- autodrafters -----------------------------------------------------------

@@ -53,6 +53,16 @@ def test_baselines_pick_the_right_players():
     assert result["QB"]["vorp"] == 280  # no bench => same baseline
 
 
+def test_value_baseline_is_the_vols_vorp_midpoint():
+    """The score's baseline. Pure VORP sits in the projection tail, which
+    craters at some positions but not others — the midpoint keeps it honest."""
+    cfg = league(qb=1, rb=0, wr=0, te=0, flex=0, k=0, dst=0, bench=2)
+    qb_points = [400.0 - i * 10 for i in range(60)]
+    result = baselines(cfg, {"QB": qb_points})
+    assert result["QB"]["value"] == (result["QB"]["vols"] + result["QB"]["vorp"]) / 2
+    assert result["QB"]["vorp"] < result["QB"]["value"] < result["QB"]["vols"]
+
+
 def test_superflex_raises_the_qb_baseline():
     points = {"QB": [400.0 - i * 10 for i in range(40)]}
     single = baselines(league(qb=1, bench=0, flex=0), points)["QB"]["vols"]

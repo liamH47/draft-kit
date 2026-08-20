@@ -12,6 +12,8 @@ sum of interpretable parts:
                       the market, weighted down because it predicts behaviour
                       rather than measuring value
   late-round hold   — kickers and defenses wait until the end of the draft
+  must-fill         — when every remaining pick is needed for an empty starting
+                      slot, those positions outrank everything
   your own tags     — target / at-ADP / fade override the market entirely
 
 All pure functions over plain data: no I/O, no database, no clock.
@@ -30,6 +32,9 @@ TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -30.0}
 # Enough to bury a kicker beneath any real contributor without scrambling the
 # ordering among kickers themselves.
 LATE_ROUND_PENALTY = 60.0
+# An empty starting slot scores zero every week, so when the remaining picks
+# are exactly spoken for, filling them dominates any candidate's upside.
+MUST_FILL_BONUS = 100.0
 # ...unless he is a genuine outlier at the position. Kickers and defenses
 # cluster tightly, so clearing this much over replacement is rare and real.
 LATE_ROUND_ELITE_VORP = 25.0
@@ -75,15 +80,30 @@ def _need_factor(position: str, my_counts: dict[str, int], starters: dict[str, f
     return max(0.0, (needed - filled) / needed)
 
 
-def _real_starters_filled(
-    my_counts: dict[str, int], starters: dict[str, float], late_positions: list[str]
-) -> bool:
-    """True once every non-K/DEF starting slot is filled."""
-    return all(
-        my_counts.get(position, 0) >= needed
-        for position, needed in starters.items()
-        if position not in late_positions and needed > 0
-    )
+def _real_starters_filled(my_counts: dict[str, int], league, late_positions: list[str]) -> bool:
+    """True once every starting slot outside the late-round positions is
+    filled. Flex and superflex are counted by surplus at their eligible
+    positions — comparing counts against fractional flex-spread quotas would
+    demand a 3rd RB AND a 3rd WR AND a 2nd TE, declaring starters set two
+    rounds late."""
+    roster = league.roster
+    dedicated = {
+        "QB": roster.qb,
+        "RB": roster.rb,
+        "WR": roster.wr,
+        "TE": roster.te,
+        "K": roster.k,
+        "DEF": roster.dst,
+    }
+    if any(
+        my_counts.get(position, 0) < slots
+        for position, slots in dedicated.items()
+        if position not in late_positions
+    ):
+        return False
+    skill_slots = roster.qb + roster.rb + roster.wr + roster.te + roster.flex + roster.superflex
+    skill_have = sum(my_counts.get(p, 0) for p in ("QB", "RB", "WR", "TE"))
+    return skill_have >= skill_slots
 
 
 def recommend(
@@ -111,8 +131,26 @@ def recommend(
     rounds_left = total_rounds - current_round + 1
     # Inside the tail of the draft, kickers and defenses score normally.
     in_late_window = rounds_left <= league.late_round_window
-    roster_otherwise_set = _real_starters_filled(my_counts, starters, late_positions)
+    roster_otherwise_set = _real_starters_filled(my_counts, league, late_positions)
     first_late_round = max(1, total_rounds - league.late_round_window + 1)
+
+    # Dedicated starting slots (whole numbers — flex fractions excluded) still
+    # unfilled. When they need every pick I have left, nothing else can be
+    # afforded: an empty slot scores zero every single week.
+    dedicated = {
+        "QB": league.roster.qb,
+        "RB": league.roster.rb,
+        "WR": league.roster.wr,
+        "TE": league.roster.te,
+        "K": league.roster.k,
+        "DEF": league.roster.dst,
+    }
+    shortfall = {
+        pos: slots - my_counts.get(pos, 0)
+        for pos, slots in dedicated.items()
+        if slots > my_counts.get(pos, 0)
+    }
+    must_fill = bool(shortfall) and sum(shortfall.values()) >= rounds_left
 
     # How many players remain in each (position, tier) — the input to urgency.
     tier_counts: dict[tuple[str, int], int] = {}
@@ -126,11 +164,19 @@ def recommend(
         score = c.vorp
         reasons: list[str] = []
 
+        forced = must_fill and c.position in shortfall
+        if forced:
+            score += MUST_FILL_BONUS
+            reasons.append(
+                f"you must fill {c.position} — every one of your "
+                f"{rounds_left} remaining picks is spoken for"
+            )
+
         # A kicker drafted in round 6 costs a starter you cannot replace, so
         # hold K and DEF back until the end — unless this is the end, your
         # lineup is otherwise complete, or he is a true outlier.
         held_back = False
-        if c.position in late_positions and not in_late_window:
+        if c.position in late_positions and not in_late_window and not forced:
             elite = c.vorp >= LATE_ROUND_ELITE_VORP
             if roster_otherwise_set:
                 reasons.append("your starters are set, so this is a fine time")
@@ -152,10 +198,21 @@ def recommend(
             score += bonus
             filled = my_counts.get(c.position, 0)
             want = starters.get(c.position, 0)
-            reasons.append(f"you still need {c.position} starters ({filled:.0f}/{want:.0f} filled)")
+            # Flex spreads fractional slots over RB/WR/TE, so a position can
+            # still carry need after its dedicated slots are full — that
+            # remainder is the flex, and the reason should say so.
+            if filled < int(want):
+                reasons.append(
+                    f"you still need {c.position} starters ({filled}/{int(want)} filled)"
+                )
+            else:
+                reasons.append("your flex is still open")
 
         if c.adp is not None:
-            delta = c.adp - current_pick
+            # Positive when he has fallen past his market price — still on the
+            # board after the room usually takes him. Negative when taking him
+            # now would be ahead of where he usually goes.
+            delta = current_pick - c.adp
             value = max(-ADP_VALUE_CAP, min(ADP_VALUE_CAP, delta * ADP_VALUE_PER_PICK))
             score += value
             if delta >= 6:
@@ -182,15 +239,17 @@ def recommend(
                 min(LIST_VALUE_CAP, c.list_vs_market * LIST_VALUE_PER_PICK),
             )
             score += nudge
-            if c.list_vs_market <= -12:
+            # list_vs_market is (blended ADP - mean list rank): positive means
+            # the lists sit ABOVE the market on him.
+            if c.list_vs_market >= 12:
                 reasons.append(
-                    f"list-followers reach for him — ranked ~{abs(c.list_vs_market):.0f} "
+                    f"list-followers reach for him — ranked ~{c.list_vs_market:.0f} "
                     "picks above his market price"
                 )
-            elif c.list_vs_market >= 12:
+            elif c.list_vs_market <= -12:
                 reasons.append(
-                    f"the lists are cold on him — he often lasts "
-                    f"~{c.list_vs_market:.0f} picks past his rank"
+                    f"the lists are cold on him — ranked ~{abs(c.list_vs_market):.0f} "
+                    "picks below his market price"
                 )
 
         if c.tag:
