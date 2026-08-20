@@ -39,5 +39,11 @@ class PoolPlayer(BaseModel):
     extra: dict[str, float | str | None] = {}
     tier: int | None = None  # gap-based, computed
     tier_expert: int | None = None  # Boris Chen
-    rank: int  # 1-based by points within the pool
+    # Value over the replacement baselines for this league (see engine/baselines):
+    # vols/vorp for display, value (their midpoint) is what scores and orders.
+    vorp: float = 0.0
+    vols: float = 0.0
+    value: float = 0.0
+    rank: int  # 1-based by value within the pool — raw points are not
+    # comparable across positions, so the pool never orders by them
     pos_rank: int  # 1-based within position

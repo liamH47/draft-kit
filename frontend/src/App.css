@@ -166,6 +166,10 @@ table.pool th:last-child {
 button.mine { background: var(--steal); color: #fff; border: 1px solid var(--steal); border-radius: 3px; }
 .note { cursor: help; }
 
+/* sortable pool headers */
+table.pool th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+table.pool th.sortable.on { color: var(--steal); }
+
 /* the model disagreeing hard with consensus is worth a glance */
 td.consensus-flag { color: var(--tier-2); font-weight: 600; }
 
