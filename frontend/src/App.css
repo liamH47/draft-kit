@@ -1,26 +1,138 @@
-.app {
-  max-width: 40rem;
-  margin: 4rem auto;
+:root {
+  --tier-1: #d64545;
+  --tier-2: #e07b39;
+  --tier-3: #d9b23c;
+  --tier-4: #6a9b5f;
+  --tier-5: #4a7fa5;
+  --tier-none: #c9c7cd;
+  --steal: #2e9e4f;
+  --reach: #c0392b;
+  --line: var(--border, #e5e4e7);
+}
+
+.wrap {
+  max-width: 46rem;
+  margin: 3rem auto;
   padding: 0 1rem;
-  text-align: center;
+}
+.wrap.wide { max-width: 72rem; }
+.muted { color: var(--text); opacity: 0.75; }
+.error { color: var(--reach); }
+
+/* --- setup --- */
+.setup { display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0; }
+.setup label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.9rem; }
+.setup .row { display: flex; gap: 1rem; }
+.setup .row label { flex: 1; }
+.setup input, .setup select {
+  padding: 0.4rem; border: 1px solid var(--line); border-radius: 4px; font: inherit;
+}
+.setup fieldset { border: 1px solid var(--line); border-radius: 4px; padding: 0.5rem 1rem; }
+.setup label.radio { flex-direction: row; align-items: center; gap: 0.4rem; }
+.setup button[type='submit'] { padding: 0.6rem; font: inherit; cursor: pointer; }
+.leagues { list-style: none; padding: 0; }
+.leagues li { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+
+/* --- draft board --- */
+.board { padding: 0.75rem 1rem 3rem; }
+.topbar {
+  display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+  padding-bottom: 0.6rem; border-bottom: 2px solid var(--line);
+}
+.topbar .overall { margin-left: 0.5rem; opacity: 0.7; font-size: 0.85rem; }
+.turn { padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--code-bg, #f2f1ea); font-size: 0.9rem; }
+.turn.now { background: var(--steal); color: #fff; font-weight: 700; }
+.topbar-actions { margin-left: auto; display: flex; gap: 0.75rem; align-items: center; }
+.stale-banner {
+  margin: 0.6rem 0; padding: 0.5rem 0.75rem; border-left: 3px solid var(--tier-3);
+  background: var(--code-bg, #f7f4e8); font-size: 0.9rem;
 }
 
-.app h1 {
-  color: var(--text-h);
+/* --- quick entry --- */
+.quick-entry { position: relative; margin: 0.9rem 0; }
+.quick-entry input {
+  width: 100%; padding: 0.6rem 0.8rem; font-size: 1.05rem;
+  border: 2px solid var(--line); border-radius: 6px;
 }
+.quick-entry input:focus { outline: none; border-color: var(--accent, #6a9b5f); }
+.matches {
+  position: absolute; z-index: 5; width: 100%; margin: 0.2rem 0 0; padding: 0;
+  list-style: none; background: var(--bg, #fff); border: 1px solid var(--line);
+  border-radius: 6px; box-shadow: var(--shadow, 0 8px 20px rgba(0,0,0,0.12));
+}
+.matches li.on { background: var(--accent-bg, rgba(106,155,95,0.12)); }
+.matches button {
+  display: flex; justify-content: space-between; width: 100%; padding: 0.45rem 0.7rem;
+  background: none; border: none; font: inherit; cursor: pointer; text-align: left;
+}
+.matches em { font-style: normal; opacity: 0.65; font-size: 0.85em; }
+.matches .vorp { opacity: 0.7; font-variant-numeric: tabular-nums; }
 
-.tagline {
-  color: var(--text);
-}
+/* --- layout --- */
+.columns { display: flex; gap: 1.5rem; align-items: flex-start; margin-top: 1rem; }
+.pool-pane { flex: 1 1 auto; min-width: 0; overflow-x: auto; }
+.side-pane { flex: 0 0 19rem; }
+.side-pane h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+@media (max-width: 60rem) { .columns { flex-direction: column; } .side-pane { flex: 1 1 auto; width: 100%; } }
 
-.health {
-  font-family: var(--mono);
+/* --- pool table --- */
+.chips { display: flex; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.chip {
+  padding: 0.25rem 0.7rem; border: 1px solid var(--line); border-radius: 999px;
+  background: none; font: inherit; font-size: 0.85rem; cursor: pointer;
 }
+.chip.on { background: var(--text-h, #08060d); color: var(--bg, #fff); }
+table.pool { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+table.pool th { text-align: left; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; padding: 0.3rem 0.4rem; }
+table.pool td { padding: 0.28rem 0.4rem; border-top: 1px solid var(--line); }
+table.pool .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.pool .strong { font-weight: 700; }
+.tier-cell { display: flex; align-items: center; gap: 0.4rem; }
+.tier-band { display: inline-block; width: 4px; height: 1.1em; border-radius: 2px; }
+.badge.steal { color: var(--steal); font-weight: 700; }
+.badge.reach { color: var(--reach); }
+tr.tag-target { background: rgba(46, 158, 79, 0.08); }
+tr.tag-fade { opacity: 0.5; }
+.tags { white-space: nowrap; }
+button.tag {
+  width: 1.5rem; padding: 0.1rem 0; margin-right: 0.15rem; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 3px; background: none; font-size: 0.75rem;
+}
+button.tag.on { background: var(--text-h, #08060d); color: var(--bg, #fff); }
+.actions {
+  white-space: nowrap;
+  /* The draft buttons must stay reachable even when the table scrolls
+     sideways — on draft night this is the control you're reaching for. */
+  position: sticky;
+  right: 0;
+  background: var(--bg, #fff);
+  box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.25);
+}
+table.pool th:last-child {
+  position: sticky;
+  right: 0;
+  background: var(--bg, #fff);
+}
+.actions button { font: inherit; font-size: 0.8rem; cursor: pointer; margin-left: 0.2rem; }
+button.mine { background: var(--steal); color: #fff; border: 1px solid var(--steal); border-radius: 3px; }
+.note { cursor: help; }
 
-.health.ok {
-  color: #2e9e4f;
-}
+/* --- recommendations --- */
+.recs { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.recs li { padding: 0.6rem 0; border-top: 1px solid var(--line); }
+.rec-head { display: flex; align-items: baseline; gap: 0.5rem; }
+.rec-head .pos { font-size: 0.8rem; opacity: 0.7; }
+.rec-head .score { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
+.reasons { margin: 0.3rem 0 0.5rem; padding-left: 1rem; font-size: 0.85rem; opacity: 0.85; }
 
-.health.err {
-  color: #c0392b;
-}
+/* --- roster --- */
+table.roster { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+table.roster th { text-align: left; padding: 0.25rem 0.4rem 0.25rem 0; white-space: nowrap; }
+table.roster td { padding: 0.25rem 0; }
+table.roster tr.unfilled th { color: var(--reach); }
+table.roster .count { opacity: 0.6; font-weight: 400; }
+
+/* --- cheat sheet --- */
+.sheet-head { display: flex; align-items: baseline; justify-content: space-between; }
+.sheet-controls { display: flex; align-items: center; gap: 1rem; margin: 0.75rem 0; }
+.toggle { display: flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; }

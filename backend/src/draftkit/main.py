@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from draftkit.api import health, leagues, players, sessions, tags
@@ -33,7 +34,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     if settings.static_dir is not None:
         # Prod: serve the built frontend from the same origin as the API.
-        app.mount("/", StaticFiles(directory=settings.static_dir, html=True), name="static")
+        static_dir = settings.static_dir
+        app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
+
+        @app.get("/{path:path}")
+        def spa(path: str) -> FileResponse:
+            """Client-side routing: deep links like /draft/3 must serve the
+            app shell rather than 404, but real files still win."""
+            candidate = (static_dir / path).resolve()
+            if path and candidate.is_file() and candidate.is_relative_to(static_dir.resolve()):
+                return FileResponse(candidate)
+            index = static_dir / "index.html"
+            if not index.is_file():
+                raise HTTPException(404, "frontend not built")
+            return FileResponse(index)
 
     return app
 

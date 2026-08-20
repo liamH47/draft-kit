@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from draftkit.board import build_board
 from draftkit.db import repo
 from draftkit.draft import ingest
 from draftkit.engine.snake import picks_until_my_turn, round_and_slot
@@ -87,6 +88,20 @@ def get_session(request: Request, session_id: int) -> dict:
     conn = request.app.state.db
     session, league = _load(conn, session_id)
     return _board(conn, session, league)
+
+
+@router.get("/{session_id}/board")
+def get_board(request: Request, session_id: int) -> dict:
+    """Everything the draft screen needs in one request."""
+    conn = request.app.state.db
+    session, league = _load(conn, session_id)
+    return build_board(
+        conn,
+        request.app.state.snapshot_store,
+        session,
+        league,
+        season=request.app.state.settings.season,
+    )
 
 
 @router.post("/{session_id}/picks")

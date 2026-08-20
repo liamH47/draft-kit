@@ -1,0 +1,12 @@
+{
+  "name": "draftkit-e2e",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end smoke test harness (see e2e/). App code lives in backend/ and frontend/.",
+  "scripts": {
+    "e2e": "node e2e/draft.spec.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

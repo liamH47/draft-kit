@@ -1,35 +1,25 @@
-import { useEffect, useState } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+
 import './App.css'
+import { CheatSheet } from './routes/CheatSheet'
+import { DraftBoard } from './routes/DraftBoard'
+import { SetupWizard } from './routes/SetupWizard'
 
-type Health = {
-  status: string
-  version: string
-  snapshots: Record<string, unknown>
-}
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+})
 
-function App() {
-  const [health, setHealth] = useState<Health | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json() as Promise<Health>
-      })
-      .then(setHealth)
-      .catch((e: Error) => setError(e.message))
-  }, [])
-
+export default function App() {
   return (
-    <main className="app">
-      <h1>draftkit</h1>
-      <p className="tagline">Free fantasy football draft assistant</p>
-      {health && <p className="health ok">backend ok · v{health.version}</p>}
-      {error && <p className="health err">backend unreachable: {error}</p>}
-      {!health && !error && <p className="health">checking backend…</p>}
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<SetupWizard />} />
+          <Route path="/draft/:sessionId" element={<DraftBoard />} />
+          <Route path="/cheatsheet/:leagueId" element={<CheatSheet />} />
+        </Routes>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
-
-export default App

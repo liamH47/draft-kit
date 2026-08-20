@@ -33,3 +33,8 @@ serve: build
 
 docker:
 	docker build -f docker/Dockerfile -t draftkit .
+
+# End-to-end smoke against a running server (see e2e/README section below).
+# Start the app with `make serve` in another shell first.
+e2e:
+	npm run e2e
