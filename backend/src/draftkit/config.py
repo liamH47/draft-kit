@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Pin every source read to disk. Set this during a live draft so a lapsed
     # TTL can never turn a board refresh into a blocking network fetch.
     offline: bool = False
+    # Private ESPN leagues need the two cookies your browser already holds.
+    # Put them in .env; they are credentials, so they never appear in a request
+    # body, a response, or a log line.
+    espn_s2: str | None = None
+    espn_swid: str | None = None
 
     @property
     def db_path(self) -> Path:

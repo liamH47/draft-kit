@@ -1,0 +1,44 @@
+{
+ "id": 1234567,
+ "settings": {
+  "name": "The Home League",
+  "size": 12,
+  "rosterSettings": {
+   "lineupSlotCounts": {
+    "0": 1,
+    "2": 2,
+    "4": 3,
+    "6": 1,
+    "23": 2,
+    "16": 1,
+    "17": 1,
+    "20": 6,
+    "21": 1
+   }
+  },
+  "scoringSettings": {
+   "scoringItems": [
+    {
+     "statId": 3,
+     "points": 0.04
+    },
+    {
+     "statId": 4,
+     "points": 4.0
+    },
+    {
+     "statId": 53,
+     "points": 0.5
+    }
+   ]
+  },
+  "draftSettings": {
+   "type": "SNAKE",
+   "pickOrder": [
+    1,
+    2,
+    3
+   ]
+  }
+ }
+}

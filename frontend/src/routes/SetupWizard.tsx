@@ -46,6 +46,21 @@ export function SetupWizard() {
   })
   const [showRoster, setShowRoster] = useState(false)
 
+  const [espnLeagueId, setEspnLeagueId] = useState('')
+  const importEspn = useMutation({
+    mutationFn: () =>
+      api.importEspnLeague({
+        espn_league_id: espnLeagueId.trim(),
+        my_slot: form.my_slot,
+        autodraft_count: form.autodraft_count,
+      }),
+    onSuccess: async (league) => {
+      await queryClient.invalidateQueries({ queryKey: ['leagues'] })
+      const { session } = await api.createSession(league.id, `${league.name} draft`)
+      navigate(`/draft/${session.id}`)
+    },
+  })
+
   const create = useMutation({
     mutationFn: () => api.createLeague(form),
     onSuccess: async (league) => {
@@ -71,6 +86,44 @@ export function SetupWizard() {
     <main className="wrap">
       <h1>draftkit</h1>
       <p className="muted">Set up a league, then start a draft.</p>
+
+      <section className="import">
+        <h2>Import an ESPN league</h2>
+        <p className="muted">
+          Reads the league's real roster slots and scoring, so replacement level is
+          right without anyone retyping settings. Private leagues need{' '}
+          <code>DRAFTKIT_ESPN_S2</code> and <code>DRAFTKIT_ESPN_SWID</code> in your{' '}
+          <code>.env</code> — never paste those anywhere else.
+        </p>
+        <div className="import-row">
+          <input
+            value={espnLeagueId}
+            placeholder="ESPN league ID (from the URL: ?leagueId=…)"
+            onChange={(e) => setEspnLeagueId(e.target.value)}
+          />
+          <label>
+            Your slot
+            <input
+              type="number"
+              min={1}
+              value={form.my_slot}
+              onChange={(e) => set('my_slot', Number(e.target.value))}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={!espnLeagueId.trim() || importEspn.isPending}
+            onClick={() => importEspn.mutate()}
+          >
+            {importEspn.isPending ? 'Reading…' : 'Import'}
+          </button>
+        </div>
+        {importEspn.error && (
+          <p className="error">{(importEspn.error as Error).message}</p>
+        )}
+      </section>
+
+      <h2 className="or">or set it up by hand</h2>
 
       <form
         className="setup"

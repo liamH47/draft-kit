@@ -43,6 +43,17 @@ export const api = {
   createLeague: (body: LeagueDraft) =>
     request<League>('/api/leagues', { method: 'POST', body: JSON.stringify(body) }),
 
+  // Read a league's real settings from ESPN rather than retyping them.
+  importEspnLeague: (body: {
+    espn_league_id: string
+    my_slot: number
+    autodraft_count: number
+  }) =>
+    request<League>('/api/leagues/import/espn', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
   createSession: (leagueId: number, name: string) =>
     request<{ session: { id: number } }>('/api/sessions', {
       method: 'POST',
