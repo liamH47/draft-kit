@@ -8,6 +8,7 @@ sum of interpretable parts:
   roster need       — unfilled starting slots, decaying as they fill
   ADP value         — is he falling past his market price, or a reach?
   tier urgency      — will this tier survive until my next turn?
+  late-round hold   — kickers and defenses wait until the end of the draft
   your own tags     — target / at-ADP / fade override the market entirely
 
 All pure functions over plain data: no I/O, no database, no clock.
@@ -23,6 +24,12 @@ ADP_VALUE_PER_PICK = 0.6  # points per pick a player has fallen past his ADP
 ADP_VALUE_CAP = 12.0  # ...but a 40-pick faller isn't 40 picks better
 TIER_URGENCY_BONUS = 14.0  # his tier probably won't survive to my next turn
 TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -30.0}
+# Enough to bury a kicker beneath any real contributor without scrambling the
+# ordering among kickers themselves.
+LATE_ROUND_PENALTY = 60.0
+# ...unless he is a genuine outlier at the position. Kickers and defenses
+# cluster tightly, so clearing this much over replacement is rare and real.
+LATE_ROUND_ELITE_VORP = 25.0
 
 
 @dataclass
@@ -56,6 +63,17 @@ def _need_factor(position: str, my_counts: dict[str, int], starters: dict[str, f
     return max(0.0, (needed - filled) / needed)
 
 
+def _real_starters_filled(
+    my_counts: dict[str, int], starters: dict[str, float], late_positions: list[str]
+) -> bool:
+    """True once every non-K/DEF starting slot is filled."""
+    return all(
+        my_counts.get(position, 0) >= needed
+        for position, needed in starters.items()
+        if position not in late_positions and needed > 0
+    )
+
+
 def recommend(
     available: list[Candidate],
     *,
@@ -63,9 +81,17 @@ def recommend(
     my_counts: dict[str, int],
     current_pick: int,
     picks_until_turn: int | None,
+    current_round: int = 1,
+    total_rounds: int = 15,
     limit: int = 5,
 ) -> list[Recommendation]:
     starters = starters_by_position(league.roster)
+    late_positions = list(league.late_round_positions)
+    rounds_left = total_rounds - current_round + 1
+    # Inside the tail of the draft, kickers and defenses score normally.
+    in_late_window = rounds_left <= league.late_round_window
+    roster_otherwise_set = _real_starters_filled(my_counts, starters, late_positions)
+    first_late_round = max(1, total_rounds - league.late_round_window + 1)
 
     # How many players remain in each (position, tier) — the input to urgency.
     tier_counts: dict[tuple[str, int], int] = {}
@@ -79,10 +105,27 @@ def recommend(
         score = c.vorp
         reasons: list[str] = []
 
+        # A kicker drafted in round 6 costs a starter you cannot replace, so
+        # hold K and DEF back until the end — unless this is the end, your
+        # lineup is otherwise complete, or he is a true outlier.
+        held_back = False
+        if c.position in late_positions and not in_late_window:
+            elite = c.vorp >= LATE_ROUND_ELITE_VORP
+            if roster_otherwise_set:
+                reasons.append("your starters are set, so this is a fine time")
+            elif elite:
+                reasons.append(f"unusually big edge at {c.position} for this stage")
+            else:
+                held_back = True
+                score -= LATE_ROUND_PENALTY
+                reasons.append(
+                    f"wait on {c.position} — round {first_late_round} or later is the spot"
+                )
+
         if c.vorp > 0:
             reasons.append(f"{c.vorp:+.0f} pts over a replacement {c.position}")
 
-        need = _need_factor(c.position, my_counts, starters)
+        need = 0.0 if held_back else _need_factor(c.position, my_counts, starters)
         if need > 0:
             bonus = NEED_BONUS * need
             score += bonus
@@ -99,7 +142,7 @@ def recommend(
             elif delta <= -6:
                 reasons.append(f"a reach — ADP {c.adp:.0f} vs pick {current_pick}")
 
-        if c.tier is not None and picks_until_turn:
+        if c.tier is not None and picks_until_turn and not held_back:
             left = tier_counts.get((c.position, c.tier), 0)
             if left <= picks_until_turn:
                 score += TIER_URGENCY_BONUS

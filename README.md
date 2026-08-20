@@ -51,6 +51,12 @@ shows a banner rather than going blank.
    player taken by someone else, **Shift+Enter** marks him as your pick. `/` refocuses
    the box, and undo fixes a mis-click.
 
+Kickers and defenses are held out of the recommendations until the last three rounds —
+a kicker in round 6 costs a starter, and K1 through K12 barely differ. Three things
+lift the hold: reaching the window, having every other starting slot filled, or a
+genuine outlier at the position. Both the positions and the window size are per-league
+settings (`late_round_positions`, `late_round_window`).
+
 Configuration is env-only; see `.env.example`. All runtime data (SQLite, source
 snapshots) lives under `DRAFTKIT_DATA_DIR` (default `./data`).
 

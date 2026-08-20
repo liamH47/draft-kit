@@ -102,6 +102,8 @@ def build_board(
             my_counts=my_counts,
             current_pick=on_clock,
             picks_until_turn=until_turn,
+            current_round=round_and_slot(min(on_clock, total), num_teams)[0],
+            total_rounds=rounds,
             limit=rec_limit,
         )
         if on_clock <= total
