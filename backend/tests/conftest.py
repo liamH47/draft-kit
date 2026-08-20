@@ -12,6 +12,7 @@ _URL_TO_FIXTURE = [
     ("fantasyfootballcalculator", FIXTURES / "ffcalc" / "adp_half_ppr_12.json", "application/json"),
     ("fftiers", FIXTURES / "borischen" / "weekly-ALL-HALF-PPR.csv", "text/csv"),
     ("db_playerids", FIXTURES / "dp" / "db_playerids.csv", "text/plain"),
+    ("lm-api-reads", FIXTURES / "espn" / "players.json", "application/json"),
 ]
 
 

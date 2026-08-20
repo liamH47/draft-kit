@@ -11,6 +11,13 @@ from typing import Any
 
 from draftkit.sources.base import RawPayload, RequestSpec, SourceDataset, SourceError
 
+TITLE = "DynastyProcess ID crosswalk"
+HOMEPAGE = "https://github.com/dynastyprocess/data"
+AUTH = "none"
+ATTRIBUTION = "Player ID crosswalk from DynastyProcess."
+NATIVE_ID = "sleeper_id"
+KIND = "crosswalk"
+PROVIDES = ["espn_id", "yahoo_id", "merge_name"]
 name = "dp_playerids"
 ttl = timedelta(days=7)
 

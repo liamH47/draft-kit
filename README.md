@@ -62,7 +62,22 @@ snapshots) lives under `DRAFTKIT_DATA_DIR` (default `./data`).
 
 ## Data sources & credits
 
+Every source is listed in **[docs/data-sources.md](docs/data-sources.md)**, which is
+generated from the adapters themselves so it cannot drift. `make docs` refreshes it and
+`make census` reports what each source actually returned versus what it claims to
+provide — run that before a draft to catch a feed that changed shape.
+
 ADP data from [Fantasy Football Calculator](https://fantasyfootballcalculator.com).
 Player data and projections from the public [Sleeper](https://sleeper.com) API.
+ADP and draft ranks from [ESPN Fantasy](https://fantasy.espn.com/).
 Tier data by [Boris Chen](http://www.borischen.co/).
 Player ID crosswalk from [DynastyProcess](https://github.com/dynastyprocess/data).
+
+### Rankings vs ADP
+
+The app keeps two different things apart on purpose. **ADP** is where players actually
+go — a market price. A **ranking list** is where a platform or a panel of experts says
+they should go. Autodrafters walk a list mechanically and plenty of humans anchor to
+whichever one is in front of them, so the gap between the two predicts a specific room.
+It is deliberately the smallest term in the recommendation score: it forecasts behaviour,
+not value, and the projections already answer the value question.

@@ -11,6 +11,13 @@ from typing import Any
 
 from draftkit.sources.base import RawPayload, RequestSpec, SourceDataset, SourceError
 
+TITLE = "Boris Chen expert tiers"
+HOMEPAGE = "http://www.borischen.co/"
+AUTH = "none"
+ATTRIBUTION = "Tier data by Boris Chen."
+NATIVE_ID = "name"
+KIND = "expert"
+PROVIDES = ["tier", "rank", "expert_rank", "expert_stdev", "expert_best", "expert_worst"]
 name = "borischen"
 ttl = timedelta(hours=12)
 
@@ -28,6 +35,14 @@ def validate(raw: RawPayload) -> None:
         raise SourceError(f"unexpected tiers CSV header: {head[:80]!r}")
 
 
+def _number(value: str | None) -> float | None:
+    """Columns come and go between Boris Chen's files; absence is not failure."""
+    try:
+        return float(value) if value not in (None, "", "NA") else None
+    except ValueError:
+        return None
+
+
 def parse(raw: RawPayload) -> SourceDataset:
     reader = csv.DictReader(io.StringIO(raw.body.decode("utf-8")))
     rows = []
@@ -38,6 +53,13 @@ def parse(raw: RawPayload) -> SourceDataset:
                 "position": "DEF" if r.get("Position") == "DST" else r.get("Position"),
                 "tier": int(r["Tier"]),
                 "rank": int(r["Rank"]),
+                # Expert consensus and the spread of disagreement. The spread
+                # matters as much as the rank: a boundary the experts argue
+                # about is not really a boundary.
+                "expert_rank": _number(r.get("Avg.Rank")),
+                "expert_stdev": _number(r.get("Std.Dev")),
+                "expert_best": _number(r.get("Best.Rank")),
+                "expert_worst": _number(r.get("Worst.Rank")),
             }
         )
     return SourceDataset(source=name, rows=rows)

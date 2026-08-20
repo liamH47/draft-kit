@@ -92,6 +92,7 @@ def build_board(
                 adp=player.adp,
                 tier=player.tier,
                 tag=tag_row.get("tag"),
+                list_vs_market=player.list_vs_market,
             )
         )
 
@@ -104,6 +105,7 @@ def build_board(
             picks_until_turn=until_turn,
             current_round=round_and_slot(min(on_clock, total), num_teams)[0],
             total_rounds=rounds,
+            autodraft_count=config.autodraft_count,
             limit=rec_limit,
         )
         if on_clock <= total

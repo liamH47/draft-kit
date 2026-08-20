@@ -79,3 +79,27 @@ def test_dp_parse():
 def test_dp_rejects_github_error_page():
     with pytest.raises(SourceError):
         dp_playerids.validate(RawPayload(b"<!DOCTYPE html><html>...", "text/html"))
+
+
+def test_borischen_keeps_expert_consensus_columns():
+    """Avg.Rank and Std.Dev are the expert signal; they were being discarded."""
+    raw = load_fixture("fftiers")
+    rows = {r["name"]: r for r in borischen_tiers.parse(raw).rows}
+    top = rows["Jahmyr Gibbs"]
+    assert top["expert_rank"] > 0
+    assert top["expert_stdev"] is not None
+    assert top["expert_best"] <= top["expert_worst"]
+
+
+def test_borischen_tolerates_missing_or_unparseable_columns():
+    """Columns come and go between Boris Chen's files; absence is not failure."""
+    body = (
+        b'"Rank","Player.Name","Tier","Position","Best.Rank","Worst.Rank","Avg.Rank","Std.Dev"\n'
+        b'1,"Someone","1","RB",1,3,"NA",""\n'
+        b'2,"Other","1","WR",1,4,"not-a-number",0.5\n'
+    )
+    rows = borischen_tiers.parse(RawPayload(body=body, content_type="text/csv")).rows
+    assert rows[0]["expert_rank"] is None
+    assert rows[0]["expert_stdev"] is None
+    assert rows[1]["expert_rank"] is None  # unparseable, not a crash
+    assert rows[1]["expert_stdev"] == 0.5

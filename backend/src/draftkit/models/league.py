@@ -79,3 +79,8 @@ class LeagueConfig(BaseModel):
     late_round_positions: list[str] = ["K", "DEF"]
     # How many rounds from the end these positions become fair game.
     late_round_window: int = 3
+
+    # How many seats in this league autodraft. Autodrafters follow a ranking
+    # list mechanically, so they never start a positional run and never reach —
+    # a room that is half robots is far calmer than its pick count suggests.
+    autodraft_count: int = Field(default=0, ge=0)
