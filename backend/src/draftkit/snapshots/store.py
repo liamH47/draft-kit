@@ -24,11 +24,18 @@ from draftkit.sources.base import RawPayload, RequestSpec, SourceAdapter, Source
 Fetcher = Callable[[RequestSpec], RawPayload]
 
 
+# Several of these feeds are ordinary websites with an API bolted on, and some
+# reject clients that do not look like a browser. Identify ourselves honestly
+# rather than sending httpx's default.
+USER_AGENT = "draftkit/0.1 (personal fantasy draft tool)"
+
+
 def http_fetch(spec: RequestSpec) -> RawPayload:
     # Tight timeouts: a slow source must degrade to the snapshot quickly
     # rather than stalling a board refresh mid-draft.
     timeout = httpx.Timeout(connect=5.0, read=8.0, write=5.0, pool=5.0)
-    resp = httpx.get(spec.url, headers=spec.headers, timeout=timeout, follow_redirects=True)
+    headers = {"User-Agent": USER_AGENT, "Accept": "*/*", **spec.headers}
+    resp = httpx.get(spec.url, headers=headers, timeout=timeout, follow_redirects=True)
     resp.raise_for_status()
     return RawPayload(body=resp.content, content_type=resp.headers.get("content-type", ""))
 
@@ -43,6 +50,27 @@ class SnapshotMeta:
 
 class SnapshotError(Exception):
     """No fresh fetch possible and no snapshot on disk to fall back to."""
+
+
+def describe_failure(exc: BaseException) -> str:
+    """Say what actually went wrong, in words worth reading at 7am on draft day.
+
+    "fetch failed" tells nobody whether the feed is down, the season is not
+    published yet, or the machine is offline — which are three different fixes.
+    """
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        hint = {
+            403: "the source refused us — it may be blocking non-browser clients",
+            404: "no data at that URL — this season may not be published yet",
+            429: "rate limited — wait a minute and retry",
+        }.get(code, "unexpected status")
+        return f"HTTP {code}: {hint}"
+    if isinstance(exc, httpx.ConnectTimeout | httpx.ReadTimeout):
+        return "timed out — the source is slow or unreachable from this network"
+    if isinstance(exc, httpx.ConnectError):
+        return f"could not connect — check the network or a proxy ({exc})"
+    return f"{type(exc).__name__}: {exc}"
 
 
 class SnapshotStore:
@@ -83,7 +111,10 @@ class SnapshotStore:
             # that validates but cannot be parsed never poisons the newest slot
         except Exception as exc:
             if cached is None:
-                raise SnapshotError(f"{adapter.name}: fetch failed and no snapshot exists") from exc
+                raise SnapshotError(
+                    f"{adapter.name}: {describe_failure(exc)} "
+                    f"(and no earlier snapshot to fall back to) — {adapter.request(params).url}"
+                ) from exc
             dataset, fetched_at = cached
             return dataset, SnapshotMeta(adapter.name, fetched_at, True, True)
 

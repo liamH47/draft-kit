@@ -106,3 +106,70 @@ def test_health_ignores_an_unreadable_snapshot(tmp_path, fixture_fetcher):
     bad = snap_dir(tmp_path) / "29991231T235959.snap"
     bad.write_bytes(b"x")  # no sibling meta at all
     assert "sleeper_players" in store.ages()
+
+
+# --- failures that explain themselves ---------------------------------------
+
+
+def test_failure_messages_name_the_actual_cause(tmp_path):
+    """ "fetch failed" cannot distinguish a source being down from a season not
+    being published yet, and those have different fixes."""
+    import httpx
+
+    from draftkit.snapshots.store import describe_failure
+
+    def status(code):
+        return httpx.HTTPStatusError(
+            "boom",
+            request=httpx.Request("GET", "https://x.test"),
+            response=httpx.Response(code, request=httpx.Request("GET", "https://x.test")),
+        )
+
+    assert "not be published yet" in describe_failure(status(404))
+    assert "blocking non-browser clients" in describe_failure(status(403))
+    assert "rate limited" in describe_failure(status(429))
+    assert "HTTP 500" in describe_failure(status(500))
+    assert "timed out" in describe_failure(httpx.ConnectTimeout("slow"))
+    assert "timed out" in describe_failure(httpx.ReadTimeout("slow"))
+    assert "could not connect" in describe_failure(httpx.ConnectError("no route"))
+    assert "ValueError" in describe_failure(ValueError("something else"))
+
+
+def test_a_first_failure_reports_the_url_and_the_reason(tmp_path):
+    """With no snapshot to fall back on, the error is all the user gets, so it
+    has to be worth reading."""
+    import httpx
+
+    def refuses(spec):
+        raise httpx.HTTPStatusError(
+            "no",
+            request=httpx.Request("GET", spec.url),
+            response=httpx.Response(404, request=httpx.Request("GET", spec.url)),
+        )
+
+    store = SnapshotStore(tmp_path, refuses)
+    with pytest.raises(SnapshotError) as caught:
+        store.get(sleeper_players)
+    message = str(caught.value)
+    assert "HTTP 404" in message
+    assert "no earlier snapshot" in message
+    assert "api.sleeper.app" in message  # which URL, so it can be tried by hand
+
+
+def test_requests_identify_themselves(monkeypatch):
+    """Some of these feeds reject clients that do not look like a browser."""
+    import httpx
+
+    from draftkit.snapshots.store import USER_AGENT, http_fetch
+    from draftkit.sources.base import RequestSpec
+
+    seen = {}
+
+    def fake_get(url, headers=None, timeout=None, follow_redirects=None):
+        seen.update(headers or {})
+        return httpx.Response(200, content=b"ok", request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    http_fetch(RequestSpec(url="https://x.test", headers={"X-Custom": "kept"}))
+    assert seen["User-Agent"] == USER_AGENT
+    assert seen["X-Custom"] == "kept"  # adapter headers still win
