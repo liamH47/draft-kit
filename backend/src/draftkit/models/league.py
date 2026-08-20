@@ -72,3 +72,10 @@ class LeagueConfig(BaseModel):
     roster: RosterSlots = RosterSlots()
     # Weight per ADP source name when blending; missing sources are skipped.
     adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5}
+
+    # Positions that should not be drafted until the end of the draft. A
+    # kicker taken in round 6 costs you a real starter, and the spread between
+    # K1 and K12 is far smaller than the spread at any other position.
+    late_round_positions: list[str] = ["K", "DEF"]
+    # How many rounds from the end these positions become fair game.
+    late_round_window: int = 3
