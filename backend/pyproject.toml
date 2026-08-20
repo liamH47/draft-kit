@@ -19,6 +19,7 @@ dev = [
     "ruff>=0.6",
     "pyright>=1.1.380",
     "types-pyyaml>=6.0.12.20260815",
+    "pytest-cov>=7.1.0",
 ]
 
 [build-system]
@@ -44,3 +45,10 @@ pythonVersion = "3.12"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+# 100% is a deliberate gate, not an aspiration: an uncovered line here is a
+# branch that will first run during someone's live draft.
+addopts = "--cov=draftkit --cov-report=term-missing --cov-fail-under=100"
+
+[tool.coverage.run]
+branch = true
+source = ["src/draftkit"]

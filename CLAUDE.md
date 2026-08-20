@@ -23,6 +23,18 @@ For decisions of consequence, run several of them and make them argue rather tha
 in parallel. Their disagreements are the useful part; a proposal that survives a hostile
 review from a rival specialist is worth more than four that were never contested.
 
+## Testing
+
+Backend coverage is gated at **100%** in `pyproject.toml` — `make check` fails below it.
+That is not perfectionism: an uncovered line in this codebase is a branch that will first
+execute during somebody's live draft, and most of the interesting ones are error paths.
+When a line is genuinely untestable, make it testable (extract the constant, inject the
+dependency) rather than lowering the gate.
+
+The frontend is covered by TypeScript strictness plus the Playwright run in `e2e/`.
+Blanket component-test coverage there would cost more than it catches; the E2E asserts
+the flows that matter.
+
 ## The one rule that matters
 
 A draft happens once and cannot be re-run. Anything that could make the board wrong,

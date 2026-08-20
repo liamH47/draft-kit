@@ -15,6 +15,10 @@ test:
 	cd backend && uv run pytest
 	cd frontend && npx tsc -b
 
+# Coverage is enforced in pytest's addopts; this just shows the report.
+coverage:
+	cd backend && uv run pytest --cov-report=term-missing
+
 lint:
 	cd backend && uv run ruff check . && uv run ruff format --check .
 	cd frontend && npm run lint

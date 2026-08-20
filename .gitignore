@@ -17,3 +17,8 @@ frontend/dist/
 
 # e2e artifacts
 /e2e/screenshots/
+
+# coverage artifacts
+.coverage
+coverage.xml
+htmlcov/

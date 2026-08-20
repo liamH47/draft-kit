@@ -16,7 +16,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="draftkit")
     app.state.settings = settings
-    app.state.snapshot_store = SnapshotStore(settings.snapshots_dir)
+    app.state.snapshot_store = SnapshotStore(settings.snapshots_dir, offline=settings.offline)
     app.state.db = connect(settings.db_path)
     migrate(app.state.db)
     app.state.events = EventBus()

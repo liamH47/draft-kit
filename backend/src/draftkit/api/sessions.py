@@ -13,6 +13,10 @@ from draftkit.engine.snake import picks_until_my_turn, round_and_slot
 
 router = APIRouter(prefix="/api/sessions")
 
+# How long the SSE stream waits before emitting a comment line. Proxies drop
+# idle connections, and a draft can sit quiet while someone deliberates.
+KEEPALIVE_SECONDS = 15.0
+
 
 class SessionCreate(BaseModel):
     league_id: int
@@ -147,15 +151,17 @@ async def session_events(request: Request, session_id: int) -> StreamingResponse
     queue = bus.subscribe(session_id)
 
     async def stream():
+        # No explicit disconnect polling: when the client goes away the server
+        # closes this generator, so the finally below is what cleans up. Polling
+        # request.is_disconnected() inside the loop can block on a receive that
+        # never arrives and stall the stream instead.
         try:
             yield "event: connected\ndata: {}\n\n"
             while True:
-                if await request.is_disconnected():
-                    break
                 try:
-                    item = await asyncio.wait_for(queue.get(), timeout=15)
+                    item = await asyncio.wait_for(queue.get(), KEEPALIVE_SECONDS)
                 except TimeoutError:
-                    yield ": keepalive\n\n"  # keeps proxies from closing the stream
+                    yield ": keepalive\n\n"  # stops proxies closing an idle stream
                     continue
                 yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
         finally:

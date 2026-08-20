@@ -3,7 +3,7 @@ import { PlayerRow } from './PlayerRow'
 
 type Props = {
   players: PoolPlayer[]
-  onDraft?: (playerId: string, isMine: boolean) => void
+  onDraft?: (playerId: string, isMine: boolean | null, name?: string) => void
   onTag?: (playerId: string, tag: Tag | null) => void
   limit?: number
 }

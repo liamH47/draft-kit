@@ -5,7 +5,7 @@ import { searchPlayers } from '../lib/format'
 
 type Props = {
   players: PoolPlayer[]
-  onDraft: (playerId: string, isMine: boolean) => void
+  onDraft: (playerId: string, isMine: boolean | null, name: string) => void
 }
 
 /** The most-used control on draft night: type a few letters, Enter marks the
@@ -29,9 +29,12 @@ export function QuickEntry({ players, onDraft }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  function commit(player: PoolPlayer | undefined, isMine: boolean) {
+  // Plain Enter sends null so the server decides ownership from whose slot is
+  // on the clock — otherwise muscle memory files your own pick as a rival's.
+  // Shift+Enter is the explicit override for entering your pick out of turn.
+  function commit(player: PoolPlayer | undefined, isMine: boolean | null) {
     if (!player) return
-    onDraft(player.player_id, isMine)
+    onDraft(player.player_id, isMine, player.name)
     setQuery('')
     inputRef.current?.focus()
   }
@@ -50,7 +53,7 @@ export function QuickEntry({ players, onDraft }: Props) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
-            commit(matches[highlight], e.shiftKey)
+            commit(matches[highlight], e.shiftKey ? true : null)
           } else if (e.key === 'ArrowDown') {
             e.preventDefault()
             setHighlight((h) => Math.min(h + 1, matches.length - 1))
@@ -66,7 +69,7 @@ export function QuickEntry({ players, onDraft }: Props) {
         <ul className="matches">
           {matches.map((p, i) => (
             <li key={p.player_id} className={i === highlight ? 'on' : undefined}>
-              <button type="button" onClick={() => commit(p, false)}>
+              <button type="button" onClick={() => commit(p, null)}>
                 <span className="who">
                   {p.name} <em>{p.position}{p.pos_rank} · {p.team ?? 'FA'}</em>
                 </span>

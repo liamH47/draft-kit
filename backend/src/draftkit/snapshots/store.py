@@ -10,6 +10,7 @@ plus a sibling .meta.json carrying content-type and fetch time.
 
 import hashlib
 import json
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,7 +25,10 @@ Fetcher = Callable[[RequestSpec], RawPayload]
 
 
 def http_fetch(spec: RequestSpec) -> RawPayload:
-    resp = httpx.get(spec.url, headers=spec.headers, timeout=30, follow_redirects=True)
+    # Tight timeouts: a slow source must degrade to the snapshot quickly
+    # rather than stalling a board refresh mid-draft.
+    timeout = httpx.Timeout(connect=5.0, read=8.0, write=5.0, pool=5.0)
+    resp = httpx.get(spec.url, headers=spec.headers, timeout=timeout, follow_redirects=True)
     resp.raise_for_status()
     return RawPayload(body=resp.content, content_type=resp.headers.get("content-type", ""))
 
@@ -42,35 +46,50 @@ class SnapshotError(Exception):
 
 
 class SnapshotStore:
-    def __init__(self, root: Path, fetcher: Fetcher = http_fetch) -> None:
+    def __init__(self, root: Path, fetcher: Fetcher = http_fetch, *, offline: bool = False) -> None:
         self._root = root
         self._fetch = fetcher
+        self._offline = offline
 
     def get(
-        self, adapter: SourceAdapter, params: dict[str, Any] | None = None, *, force: bool = False
+        self,
+        adapter: SourceAdapter,
+        params: dict[str, Any] | None = None,
+        *,
+        force: bool = False,
+        offline: bool | None = None,
     ) -> tuple[SourceDataset, SnapshotMeta]:
+        """Fresh data when the source cooperates, the newest parseable snapshot
+        otherwise. This must not raise while any usable snapshot exists — it is
+        the read a live draft depends on."""
         params = params or {}
         directory = self._dir(adapter, params)
-        newest = self._newest(directory)
+        offline = self._offline if offline is None else offline
 
-        if newest is not None and not force:
-            raw, fetched_at = self._load(newest)
-            age_ok = datetime.now(UTC) - fetched_at < adapter.ttl
-            if age_ok:
-                return adapter.parse(raw), SnapshotMeta(adapter.name, fetched_at, False, True)
+        cached = self._newest_parseable(adapter, directory)
+        if cached is not None:
+            dataset, fetched_at = cached
+            fresh_enough = datetime.now(UTC) - fetched_at < adapter.ttl
+            # Offline mode pins us to disk: during a draft a lapsed TTL must
+            # never turn a board refresh into a blocking network fetch.
+            if (fresh_enough and not force) or offline:
+                stale = not fresh_enough
+                return dataset, SnapshotMeta(adapter.name, fetched_at, stale, True)
 
         try:
             raw = self._fetch(adapter.request(params))
             adapter.validate(raw)
+            dataset = adapter.parse(raw)  # parse BEFORE persisting, so a payload
+            # that validates but cannot be parsed never poisons the newest slot
         except Exception as exc:
-            if newest is None:
+            if cached is None:
                 raise SnapshotError(f"{adapter.name}: fetch failed and no snapshot exists") from exc
-            raw, fetched_at = self._load(newest)
-            return adapter.parse(raw), SnapshotMeta(adapter.name, fetched_at, True, True)
+            dataset, fetched_at = cached
+            return dataset, SnapshotMeta(adapter.name, fetched_at, True, True)
 
         fetched_at = datetime.now(UTC)
         self._write(directory, raw, fetched_at)
-        return adapter.parse(raw), SnapshotMeta(adapter.name, fetched_at, False, False)
+        return dataset, SnapshotMeta(adapter.name, fetched_at, False, False)
 
     def ages(self) -> dict[str, float]:
         """Hours since the newest snapshot, per source dir — for /api/health."""
@@ -78,27 +97,36 @@ class SnapshotStore:
         if not self._root.is_dir():
             return out
         for source_dir in self._root.iterdir():
-            newest_ts: datetime | None = None
-            for snap in source_dir.glob("*/*.snap"):
-                _, ts = self._load(snap, body=False)
-                if newest_ts is None or ts > newest_ts:
-                    newest_ts = ts
-            if newest_ts is not None:
-                out[source_dir.name] = round(
-                    (datetime.now(UTC) - newest_ts).total_seconds() / 3600, 1
-                )
+            # Snapshot names are UTC timestamps, so lexical order is
+            # chronological order and the first readable one is the newest.
+            for snap in sorted(source_dir.glob("*/*.snap"), reverse=True):
+                try:
+                    _, ts = self._load(snap, body=False)
+                except Exception:
+                    continue  # health must never fail because of a bad snapshot
+                out[source_dir.name] = round((datetime.now(UTC) - ts).total_seconds() / 3600, 1)
+                break
         return out
 
     def _dir(self, adapter: SourceAdapter, params: dict[str, Any]) -> Path:
         key = hashlib.sha1(json.dumps(params, sort_keys=True).encode()).hexdigest()[:12]
         return self._root / adapter.name / key
 
-    @staticmethod
-    def _newest(directory: Path) -> Path | None:
+    def _newest_parseable(
+        self, adapter: SourceAdapter, directory: Path
+    ) -> tuple[SourceDataset, datetime] | None:
+        """Walk snapshots newest-first and return the first one that actually
+        parses. A truncated write or a since-fixed parser bug costs us one
+        snapshot, not the whole cache."""
         if not directory.is_dir():
             return None
-        snaps = sorted(directory.glob("*.snap"))
-        return snaps[-1] if snaps else None
+        for path in sorted(directory.glob("*.snap"), reverse=True):
+            try:
+                raw, fetched_at = self._load(path)
+                return adapter.parse(raw), fetched_at
+            except Exception:
+                continue
+        return None
 
     @staticmethod
     def _load(path: Path, body: bool = True) -> tuple[RawPayload, datetime]:
@@ -109,9 +137,16 @@ class SnapshotStore:
 
     @staticmethod
     def _write(directory: Path, raw: RawPayload, fetched_at: datetime) -> None:
+        """Write meta first, then the payload atomically. A snapshot is only
+        discoverable once its .snap exists, so a crash mid-write leaves an
+        orphan .meta.json rather than a payload with no metadata."""
         directory.mkdir(parents=True, exist_ok=True)
         stamp = fetched_at.strftime("%Y%m%dT%H%M%S")
-        (directory / f"{stamp}.snap").write_bytes(raw.body)
-        (directory / f"{stamp}.meta.json").write_text(
+        meta_path = directory / f"{stamp}.meta.json"
+        meta_path.write_text(
             json.dumps({"fetched_at": fetched_at.isoformat(), "content_type": raw.content_type})
         )
+        snap_path = directory / f"{stamp}.snap"
+        tmp = snap_path.with_suffix(".snap.part")
+        tmp.write_bytes(raw.body)
+        os.replace(tmp, snap_path)

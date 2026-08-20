@@ -13,8 +13,16 @@ export function DraftBoard() {
   const sessionId = Number(useParams().sessionId)
   const { data: board, isLoading, error } = useBoard(sessionId)
   useSessionEvents(sessionId)
-  const { draft, undo, tag } = useDraftActions(sessionId, board?.league.id)
+  const { draft, undo, tag, notice, clearNotice } = useDraftActions(sessionId, board?.league.id)
   const [position, setPosition] = useState('ALL')
+
+  // The pick log stores ids; the pool carries the names.
+  const byId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of board?.available ?? []) map.set(p.player_id, p.name)
+    for (const p of board?.my_players ?? []) map.set(p.player_id, p.name)
+    return map
+  }, [board])
 
   const filtered = useMemo(() => {
     if (!board) return []
@@ -31,7 +39,8 @@ export function DraftBoard() {
   const clock = board.on_the_clock
   const myTurn = board.picks_until_my_turn === 0
 
-  const onDraft = (playerId: string, isMine: boolean) => draft.mutate({ playerId, isMine })
+  const onDraft = (playerId: string, isMine: boolean | null, name?: string) =>
+    draft.mutate({ playerId, isMine, name })
   const onTag = (playerId: string, value: Tag | null) => tag.mutate({ playerId, value })
 
   return (
@@ -64,6 +73,15 @@ export function DraftBoard() {
         </div>
       </header>
 
+      {notice && (
+        <p className={notice.kind === 'error' ? 'notice error' : 'notice ok'} role="status">
+          {notice.text}
+          <button type="button" className="dismiss" onClick={clearNotice} aria-label="dismiss">
+            ×
+          </button>
+        </p>
+      )}
+
       {stale.length > 0 && (
         <p className="stale-banner">
           Using cached data for {stale.map(([name]) => name).join(', ')} — a source is
@@ -80,6 +98,21 @@ export function DraftBoard() {
         </section>
 
         <aside className="side-pane">
+          <h2>Recent picks</h2>
+          <ol className="pick-log">
+            {board.picks
+              .slice(-6)
+              .reverse()
+              .map((p) => (
+                <li key={p.id} className={p.is_mine ? 'mine' : undefined}>
+                  <span className="no">#{p.overall_no}</span>
+                  {byId.get(p.player_id) ?? p.player_id}
+                  {p.is_mine ? <em> you</em> : null}
+                </li>
+              ))}
+            {board.picks.length === 0 && <li className="muted">no picks yet</li>}
+          </ol>
+
           <h2>Recommended</h2>
           <RecommendationPanel recommendations={board.recommendations} onDraft={onDraft} />
           <h2>Your roster</h2>

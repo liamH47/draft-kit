@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { api, type LeagueDraft } from '../api/client'
+import { api, type LeagueDraft, type RosterSlots } from '../api/client'
 import type { ScoringPreset } from '../api/types'
 
 const SCORING: { value: ScoringPreset; label: string }[] = [
@@ -12,6 +12,23 @@ const SCORING: { value: ScoringPreset; label: string }[] = [
 ]
 
 const PLATFORMS = ['sleeper', 'espn', 'yahoo', 'other']
+
+// Order matters: this is how a league settings page reads.
+const ROSTER_FIELDS: { key: keyof RosterSlots; label: string; hint?: string }[] = [
+  { key: 'qb', label: 'QB' },
+  { key: 'rb', label: 'RB' },
+  { key: 'wr', label: 'WR' },
+  { key: 'te', label: 'TE' },
+  { key: 'flex', label: 'FLEX', hint: 'RB/WR/TE' },
+  { key: 'superflex', label: 'SFLEX', hint: 'incl. QB' },
+  { key: 'k', label: 'K' },
+  { key: 'dst', label: 'DST' },
+  { key: 'bench', label: 'Bench' },
+]
+
+const DEFAULT_ROSTER: RosterSlots = {
+  qb: 1, rb: 2, wr: 2, te: 1, flex: 1, superflex: 0, k: 1, dst: 1, bench: 6,
+}
 
 export function SetupWizard() {
   const navigate = useNavigate()
@@ -24,7 +41,9 @@ export function SetupWizard() {
     my_slot: 1,
     rounds: 15,
     scoring: 'half_ppr',
+    roster: DEFAULT_ROSTER,
   })
+  const [showRoster, setShowRoster] = useState(false)
 
   const create = useMutation({
     mutationFn: () => api.createLeague(form),
@@ -37,6 +56,15 @@ export function SetupWizard() {
 
   const set = <K extends keyof LeagueDraft>(key: K, value: LeagueDraft[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
+
+  const setSlot = (key: keyof RosterSlots, value: number) =>
+    setForm((f) => ({ ...f, roster: { ...f.roster, [key]: Math.max(0, value) } }))
+
+  // Starting spots drive replacement level, so it is worth showing the user
+  // the number the model will actually use.
+  const starters =
+    form.roster.qb + form.roster.rb + form.roster.wr + form.roster.te +
+    form.roster.flex + form.roster.superflex + form.roster.k + form.roster.dst
 
   return (
     <main className="wrap">
@@ -78,6 +106,34 @@ export function SetupWizard() {
             </label>
           ))}
         </fieldset>
+
+        <details className="roster-settings" open={showRoster}>
+          <summary onClick={(e) => { e.preventDefault(); setShowRoster((v) => !v) }}>
+            Roster settings
+            <span className="summary-note">
+              {starters} starters + {form.roster.bench} bench
+            </span>
+          </summary>
+          <div className="slot-grid">
+            {ROSTER_FIELDS.map((field) => (
+              <label key={field.key}>
+                {field.label}
+                {field.hint && <em>{field.hint}</em>}
+                <input
+                  type="number"
+                  min={0}
+                  max={12}
+                  value={form.roster[field.key]}
+                  onChange={(e) => setSlot(field.key, Number(e.target.value))}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="slot-help">
+            These set replacement level. A 3-WR league values receivers very
+            differently from a 2-WR league, so it is worth getting right.
+          </p>
+        </details>
 
         <div className="row">
           <label>
