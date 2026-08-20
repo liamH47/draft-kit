@@ -122,6 +122,17 @@ class SnapshotStore:
         self._write(directory, raw, fetched_at)
         return dataset, SnapshotMeta(adapter.name, fetched_at, False, False)
 
+    def freshness_token(self) -> tuple:
+        """Cheap fingerprint of the snapshot tree, for callers that cache data
+        derived from it (the built pool): equal tokens mean no snapshot has
+        landed or changed. Absolute paths keep tokens from different stores
+        distinct."""
+        if not self._root.is_dir():
+            return ()
+        return tuple(
+            sorted((str(p), p.stat().st_mtime_ns) for p in self._root.glob("*/*/*.snap"))
+        )
+
     def ages(self) -> dict[str, float]:
         """Hours since the newest snapshot, per source dir — for /api/health."""
         out: dict[str, float] = {}

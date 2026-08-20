@@ -6,6 +6,7 @@ when available. Any optional source failing (even with no snapshot) costs its
 columns, never the pool.
 """
 
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,51 @@ class PoolResult:
     players: list[PoolPlayer]
     sources: dict[str, SnapshotMeta]
     unmatched: list[dict[str, Any]]
+
+
+# Building the pool costs ~800ms of parsing and identity resolution, and the
+# board rereads it after every single pick — that lag is what makes entering
+# a pick feel slow. The pool only actually changes when a snapshot lands or
+# the league config does, so cache per configuration until either happens.
+# The time cap keeps the store's TTL semantics: without it, a cache hit would
+# skip store.get() forever and a lapsed source would never refetch.
+_POOL_CACHE_SECONDS = 300.0
+_pool_cache: dict[tuple, tuple[float, tuple, PoolResult]] = {}
+
+
+def clear_pool_cache() -> None:
+    _pool_cache.clear()
+
+
+def build_pool_cached(
+    store: SnapshotStore,
+    league: LeagueConfig,
+    *,
+    season: int,
+    scoring_preset: str = "half_ppr",
+    overrides_path: Path | None = None,
+    min_points: float = 1.0,
+) -> PoolResult:
+    key = (league.model_dump_json(), season, scoring_preset, str(overrides_path), min_points)
+    token = store.freshness_token()
+    hit = _pool_cache.get(key)
+    if hit is not None:
+        built_at, cached_token, result = hit
+        if cached_token == token and time.monotonic() - built_at < _POOL_CACHE_SECONDS:
+            return result
+    result = build_pool(
+        store,
+        league,
+        season=season,
+        scoring_preset=scoring_preset,
+        overrides_path=overrides_path,
+        min_points=min_points,
+    )
+    # Re-fingerprint AFTER building: the build itself may have fetched and
+    # written snapshots, and the cached token must describe the tree the
+    # pool was actually built from.
+    _pool_cache[key] = (time.monotonic(), store.freshness_token(), result)
+    return result
 
 
 def build_pool(
