@@ -8,6 +8,7 @@ themselves, so it cannot drift from the code.
 | --- | --- | --- | --- | --- | --- |
 | [Boris Chen expert tiers](http://www.borischen.co/) | expert | none | `name` | 12.0h | `tier`, `rank`, `expert_rank`, `expert_stdev`, `expert_best`, `expert_worst` |
 | [DynastyProcess ID crosswalk](https://github.com/dynastyprocess/data) | crosswalk | none | `sleeper_id` | 168.0h | `espn_id`, `yahoo_id`, `merge_name` |
+| [ESPN league settings](https://fantasy.espn.com/) | league | none | `espn_league_id` | 12.0h | `num_teams`, `roster`, `scoring_preset`, `rounds`, `reception_points` |
 | [ESPN ADP and draft ranks](https://fantasy.espn.com/) | platform | none | `espn_id` | 6.0h | `adp`, `auction_value`, `percent_owned`, `list_rank` |
 | [Fantasy Football Calculator ADP](https://fantasyfootballcalculator.com/adp) | market | none | `ffc_id` | 3.0h | `adp`, `stdev`, `high`, `low`, `times_drafted`, `bye` |
 | [Sleeper player universe](https://docs.sleeper.com/) | identity | none | `sleeper_id` | 24.0h | `name`, `position`, `team`, `status` |
@@ -17,6 +18,7 @@ themselves, so it cannot drift from the code.
 
 - Tier data by Boris Chen.
 - Player ID crosswalk from DynastyProcess.
+- League settings from ESPN Fantasy.
 - ADP and draft ranks from ESPN Fantasy.
 - ADP data from Fantasy Football Calculator.
 - Player data from the public Sleeper API.
@@ -31,6 +33,7 @@ themselves, so it cannot drift from the code.
   difference between those two is what predicts a specific room
 - **expert** — published rankings and the spread of disagreement
 - **crosswalk** — id mapping between sources
+- **league** — one specific league's own settings, so nobody retypes them
 
 ## Not used, and why
 

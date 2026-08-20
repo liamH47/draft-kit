@@ -9,6 +9,7 @@ from draftkit.models.league import (
     ScoringPreset,
     ScoringSettings,
 )
+from draftkit.sources import espn_league
 
 router = APIRouter(prefix="/api/leagues")
 
@@ -47,6 +48,63 @@ def create_league(request: Request, body: LeagueCreate) -> dict:
     conn = request.app.state.db
     league_id = repo.create_league(
         conn, body.to_config(), scoring_preset=body.scoring, rounds=body.rounds
+    )
+    league = repo.get_league(conn, league_id)
+    assert league is not None
+    return league
+
+
+class LeagueImport(BaseModel):
+    espn_league_id: str
+    my_slot: int = Field(default=1, ge=1)
+    name: str | None = None
+    autodraft_count: int = Field(default=0, ge=0)
+
+
+@router.post("/import/espn")
+def import_espn_league(request: Request, body: LeagueImport) -> dict:
+    """Read a league's real settings from ESPN rather than asking the user to
+    retype them. Roster shape drives replacement level, so a transcription slip
+    here mis-prices every player at that position."""
+    settings = request.app.state.settings
+    store = request.app.state.snapshot_store
+    try:
+        dataset, _ = store.get(
+            espn_league,
+            {
+                "season": settings.season,
+                "league_id": body.espn_league_id,
+                # Credentials come from the environment, never from the caller.
+                "espn_s2": settings.espn_s2,
+                "swid": settings.espn_swid,
+            },
+        )
+    except Exception as exc:
+        raise HTTPException(
+            502,
+            "Could not read that league from ESPN. If it is private, set "
+            "DRAFTKIT_ESPN_S2 and DRAFTKIT_ESPN_SWID in your .env.",
+        ) from exc
+
+    found = dataset.rows[0]
+    if body.my_slot > found["num_teams"]:
+        raise HTTPException(
+            422, f"my_slot {body.my_slot} exceeds the league's {found['num_teams']} teams"
+        )
+    draft = LeagueCreate(
+        name=body.name or found["league_name"],
+        platform="espn",
+        num_teams=found["num_teams"],
+        my_slot=body.my_slot,
+        rounds=found["rounds"],
+        scoring=found["scoring_preset"],
+        scoring_overrides={"rec": found["reception_points"]},
+        roster=RosterSlots(**found["roster"]),
+        autodraft_count=body.autodraft_count,
+    )
+    conn = request.app.state.db
+    league_id = repo.create_league(
+        conn, draft.to_config(), scoring_preset=draft.scoring, rounds=draft.rounds
     )
     league = repo.get_league(conn, league_id)
     assert league is not None

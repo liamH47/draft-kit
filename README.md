@@ -44,7 +44,15 @@ shows a banner rather than going blank.
 
 ## Using it on draft night
 
-1. **Set up the league** — teams, scoring, your draft slot.
+1. **Set up the league.** If it is on ESPN, paste the league ID from the URL and hit
+   Import — the app reads the real roster slots and scoring, so replacement level is
+   right without anyone retyping settings. A 3-WR league values receivers very
+   differently from a 2-WR one, and that difference is larger than most of the
+   recommendation model. Otherwise fill in the form by hand.
+
+   Private ESPN leagues need `DRAFTKIT_ESPN_S2` and `DRAFTKIT_ESPN_SWID` in your
+   `.env` (see `.env.example`). Those are credentials — they belong in that file and
+   nowhere else.
 2. **Prep the cheat sheet** — tag players **T** (target: take ahead of ADP), **A** (at
    ADP) or **F** (fade: only well past ADP). Tags feed straight into the recommendations.
 3. **Draft** — the quick-entry box stays focused: type a few letters, **Enter** marks a

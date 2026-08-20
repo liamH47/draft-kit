@@ -33,6 +33,20 @@
 .leagues { list-style: none; padding: 0; }
 .leagues li { display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
 
+/* --- espn import --- */
+.import {
+  border: 1px solid var(--line); border-radius: 6px; padding: 0.75rem 1rem; margin: 1.5rem 0 1rem;
+}
+.import h2 { margin: 0 0 0.3rem; font-size: 1rem; }
+.import p { margin: 0 0 0.7rem; font-size: 0.85rem; }
+.import code { font-size: 0.9em; background: var(--code-bg, #f4f3ec); padding: 0 0.2em; }
+.import-row { display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+.import-row > input { flex: 1 1 16rem; padding: 0.4rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+.import-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; width: 5rem; }
+.import-row label input { padding: 0.4rem; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+.import-row button { padding: 0.45rem 1rem; font: inherit; cursor: pointer; }
+h2.or { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.55; margin: 1.2rem 0 0; }
+
 /* --- roster settings disclosure --- */
 .roster-settings {
   border: 1px solid var(--line);

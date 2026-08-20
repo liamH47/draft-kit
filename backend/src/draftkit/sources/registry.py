@@ -118,6 +118,7 @@ def as_markdown() -> str:
         "  difference between those two is what predicts a specific room",
         "- **expert** — published rankings and the spread of disagreement",
         "- **crosswalk** — id mapping between sources",
+        "- **league** — one specific league's own settings, so nobody retypes them",
         "",
         "## Not used, and why",
         "",

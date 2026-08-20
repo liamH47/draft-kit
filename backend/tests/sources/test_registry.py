@@ -12,7 +12,7 @@ import draftkit.sources as sources_package
 from draftkit.snapshots.store import SnapshotStore
 from draftkit.sources import registry
 
-KINDS = {"identity", "projection", "market", "platform", "expert", "crosswalk"}
+KINDS = {"identity", "projection", "market", "platform", "expert", "crosswalk", "league"}
 AUTH_KINDS = {"none", "oauth", "extension"}
 
 
@@ -85,6 +85,7 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
         "ffcalc": {"format": "half_ppr", "teams": 12, "year": 2026},
         "borischen": {"format": "half_ppr"},
         "espn_market": {"season": 2026},
+        "espn_league": {"season": 2026, "league_id": "1234567"},
     }
     for info in registry.all_sources():
         dataset, _ = store.get(info.module, params[info.name])
