@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from draftkit.engine.adp import blend_adp, consensus_rank, list_vs_market
+from draftkit.engine.baselines import baselines
 from draftkit.engine.scoring import score
 from draftkit.engine.tiers import gap_tiers
 from draftkit.identity.resolver import Resolver
@@ -213,7 +214,22 @@ def build_pool(
             )
         )
 
-    pool.sort(key=lambda p: p.points, reverse=True)
+    # Raw points are not comparable across positions (every QB projects more
+    # points than any RB), so the pool orders by value over the replacement
+    # baseline — the same measure the recommendation score is built on. This
+    # is what makes the "ALL" view read like a draft board instead of a list
+    # of quarterbacks.
+    points_by_position: dict[str, list[float]] = {}
+    for p in pool:
+        points_by_position.setdefault(p.position, []).append(p.points)
+    bases = baselines(league, points_by_position)
+    for p in pool:
+        base = bases.get(p.position, {"vols": 0.0, "vorp": 0.0, "value": 0.0})
+        p.vorp = round(p.points - base["vorp"], 1)
+        p.vols = round(p.points - base["vols"], 1)
+        p.value = round(p.points - base["value"], 1)
+
+    pool.sort(key=lambda p: p.value, reverse=True)
     pos_counts: dict[str, int] = {}
     for i, p in enumerate(pool):
         p.rank = i + 1
@@ -221,6 +237,8 @@ def build_pool(
         p.pos_rank = pos_counts[p.position]
 
     for position in {p.position for p in pool}:
+        # Within one position, value order == points order (a per-position
+        # baseline is a constant shift), so gap tiers stay valid.
         at_pos = [p for p in pool if p.position == position]
         for p, tier in zip(at_pos, gap_tiers([p.points for p in at_pos]), strict=True):
             p.tier = tier

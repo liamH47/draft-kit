@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from draftkit.db import repo
-from draftkit.engine.baselines import baselines
 from draftkit.engine.recommend import Candidate, recommend
 from draftkit.engine.snake import gap_after, picks_until_my_turn, round_and_slot
 from draftkit.models.league import LeagueConfig
@@ -47,13 +46,6 @@ def build_board(
     drafted = {p["player_id"] for p in picks}
     mine = [p["player_id"] for p in picks if p["is_mine"]]
 
-    # Baselines come from the FULL pool: replacement level is a property of
-    # the player universe, not of who happens to be left on the board.
-    points_by_position: dict[str, list[float]] = {}
-    for player in pool_result.players:
-        points_by_position.setdefault(player.position, []).append(player.points)
-    bases = baselines(config, points_by_position)
-
     made = len(picks)
     on_clock = made + 1
     total = num_teams * rounds
@@ -85,16 +77,8 @@ def build_board(
     expert_positions = {p.position for p in pool_result.players if p.tier_expert}
 
     for player in pool_result.players:
-        base = bases.get(player.position, {"vorp": 0.0, "vols": 0.0, "value": 0.0})
-        vorp = round(player.points - base["vorp"], 1)
-        vols = round(player.points - base["vols"], 1)
-        # What the score is built on: the VOLS/VORP midpoint, so a projection
-        # tail that craters at one position can't skew cross-position value.
-        value = round(player.points - base["value"], 1)
         tag_row = tags.get(player.player_id, {})
         row = player.model_dump() | {
-            "vorp": vorp,
-            "vols": vols,
             "tag": tag_row.get("tag"),
             "note": tag_row.get("note"),
             "adp_delta": (round(player.adp - on_clock, 1) if player.adp is not None else None),
@@ -112,7 +96,10 @@ def build_board(
                 name=player.name,
                 position=player.position,
                 points=player.points,
-                vorp=value,
+                # The score's backbone is the VOLS/VORP midpoint, so a
+                # projection tail that craters at one position can't skew
+                # cross-position value.
+                vorp=player.value,
                 adp=player.adp,
                 tier=(player.tier_expert if player.position in expert_positions else player.tier),
                 tag=tag_row.get("tag"),

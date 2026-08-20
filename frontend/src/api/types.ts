@@ -18,6 +18,7 @@ export type PoolPlayer = {
   pos_rank: number
   vorp: number
   vols: number
+  value: number
   tag: Tag | null
   note: string | null
 }
