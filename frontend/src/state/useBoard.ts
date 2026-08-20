@@ -23,6 +23,7 @@ export function useSessionEvents(sessionId: number) {
     const refresh = () => queryClient.invalidateQueries({ queryKey: ['board', sessionId] })
     source.addEventListener('pick_recorded', refresh)
     source.addEventListener('pick_undone', refresh)
+    source.addEventListener('pick_corrected', refresh)
     return () => source.close()
   }, [sessionId, queryClient])
 }
@@ -52,6 +53,23 @@ export function useDraftActions(sessionId: number, leagueId: number | undefined)
     onError: (err: Error, vars) =>
       setNotice({ kind: 'error', text: `${vars.name ?? 'Pick'} NOT recorded — ${err.message}` }),
   })
+  const correct = useMutation({
+    mutationFn: ({
+      overallNo,
+      playerId,
+    }: {
+      overallNo: number
+      playerId: string
+      name?: string
+    }) => api.correctPick(sessionId, overallNo, playerId),
+    onSuccess: (_data, vars) => {
+      setNotice({ kind: 'ok', text: `Pick #${vars.overallNo} is now ${vars.name ?? 'updated'}` })
+      invalidate()
+    },
+    onError: (err: Error, vars) =>
+      setNotice({ kind: 'error', text: `Could not fix pick #${vars.overallNo} — ${err.message}` }),
+  })
+
   const undo = useMutation({
     mutationFn: () => api.undo(sessionId),
     onSuccess: () => {
@@ -66,5 +84,5 @@ export function useDraftActions(sessionId: number, leagueId: number | undefined)
     onSuccess: invalidate,
     onError: (err: Error) => setNotice({ kind: 'error', text: `Tag failed — ${err.message}` }),
   })
-  return { draft, undo, tag, notice, clearNotice: () => setNotice(null) }
+  return { draft, correct, undo, tag, notice, clearNotice: () => setNotice(null) }
 }

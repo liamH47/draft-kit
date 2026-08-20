@@ -200,3 +200,77 @@ def test_explicit_ownership_still_overrides(client):
     ).json()
     assert forced["pick"]["slot"] == 1  # not my slot...
     assert forced["pick"]["is_mine"] is True  # ...but I said it was mine
+
+
+def test_correcting_a_pick_made_several_picks_ago(client):
+    """Mistyping pick 3 and noticing at pick 8 should cost one correction, not
+    five undos and five re-entries while the room keeps drafting."""
+    league = make_league(client, num_teams=12, my_slot=7)
+    sid = make_session(client, league["id"])["session"]["id"]
+    for i in range(8):
+        client.post(f"/api/sessions/{sid}/picks", json={"player_id": f"p{i}"})
+
+    fixed = client.put(f"/api/sessions/{sid}/picks/3", json={"player_id": "actually-him"})
+    assert fixed.status_code == 200, fixed.text
+    board = fixed.json()
+    assert board["pick"]["overall_no"] == 3
+    assert board["pick"]["source"] == "correction"
+    # Everything after it is untouched.
+    assert board["picks_made"] == 8
+    assert board["drafted_player_ids"][2] == "actually-him"
+    assert board["drafted_player_ids"][3] == "p3"
+    # And the mistake is free to be drafted by whoever actually took him.
+    assert client.post(f"/api/sessions/{sid}/picks", json={"player_id": "p2"}).status_code == 200
+
+
+def test_a_correction_reassigns_ownership_by_slot(client):
+    league = make_league(client, num_teams=12, my_slot=3)
+    sid = make_session(client, league["id"])["session"]["id"]
+    for i in range(5):
+        client.post(f"/api/sessions/{sid}/picks", json={"player_id": f"p{i}"})
+
+    # Pick 3 is my slot, so whoever ends up there is mine.
+    fixed = client.put(f"/api/sessions/{sid}/picks/3", json={"player_id": "mine-really"}).json()
+    assert fixed["pick"]["is_mine"] is True
+    assert "mine-really" in fixed["my_player_ids"]
+    assert "p2" not in fixed["my_player_ids"]
+
+
+def test_correcting_to_someone_already_drafted_is_rejected(client):
+    league = make_league(client)
+    sid = make_session(client, league["id"])["session"]["id"]
+    for i in range(4):
+        client.post(f"/api/sessions/{sid}/picks", json={"player_id": f"p{i}"})
+    resp = client.put(f"/api/sessions/{sid}/picks/2", json={"player_id": "p3"})
+    assert resp.status_code == 409
+
+
+def test_correcting_a_pick_to_itself_is_allowed(client):
+    """Re-confirming the same player must not trip the duplicate check."""
+    league = make_league(client)
+    sid = make_session(client, league["id"])["session"]["id"]
+    client.post(f"/api/sessions/{sid}/picks", json={"player_id": "same"})
+    assert client.put(f"/api/sessions/{sid}/picks/1", json={"player_id": "same"}).status_code == 200
+
+
+def test_correcting_a_pick_that_never_happened_is_a_404(client):
+    league = make_league(client)
+    sid = make_session(client, league["id"])["session"]["id"]
+    client.post(f"/api/sessions/{sid}/picks", json={"player_id": "only-one"})
+    assert client.put(f"/api/sessions/{sid}/picks/9", json={"player_id": "x"}).status_code == 404
+    assert client.put("/api/sessions/999/picks/1", json={"player_id": "x"}).status_code == 404
+
+
+def test_corrections_survive_a_restart(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data")
+    first = TestClient(create_app(settings))
+    league = make_league(first)
+    sid = make_session(first, league["id"])["session"]["id"]
+    for i in range(6):
+        first.post(f"/api/sessions/{sid}/picks", json={"player_id": f"p{i}"})
+    first.put(f"/api/sessions/{sid}/picks/2", json={"player_id": "corrected"})
+    before = first.get(f"/api/sessions/{sid}").json()
+
+    after = TestClient(create_app(settings)).get(f"/api/sessions/{sid}").json()
+    assert after == before
+    assert after["drafted_player_ids"][1] == "corrected"

@@ -22,19 +22,71 @@ export function adpLabel(player: PoolPlayer): { text: string; kind: 'steal' | 'r
   return { text: rounded > 0 ? `+${rounded}` : `${rounded}`, kind: 'flat' }
 }
 
-/** Rank players for the quick-entry box: prefix matches first, then
- *  substring, each by draft value, so typing "jef" lands on Jefferson. */
-export function searchPlayers(players: PoolPlayer[], query: string, limit = 8): PoolPlayer[] {
-  const q = query.trim().toLowerCase()
+const SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v'])
+
+/** Mirrors the backend's identity/normalize.py. Names arrive spelled six ways
+ *  and are heard across a room, so "A.J.", "AJ", "Ja'Marr", "Smith-Njigba" and
+ *  "Kenneth Walker III" all have to collapse to the same thing. */
+export function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[.'’]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/)
+    .filter((part) => part && !SUFFIXES.has(part))
+    .join(' ')
+}
+
+export type SearchHit = {
+  player: PoolPlayer
+  /** Already off the board. Shown greyed rather than hidden: an empty dropdown
+   *  is indistinguishable from a typo when you are behind the room. */
+  gone?: { overall_no: number; is_mine: boolean }
+}
+
+/** Rank candidates for the quick-entry box: whole-name prefix first, then any
+ *  word prefix, then substring — so "jef" finds Jefferson, "st brown" finds
+ *  Amon-Ra St. Brown, and "cee dee" finds CeeDee Lamb. */
+export function searchPlayers(
+  players: PoolPlayer[],
+  query: string,
+  limit = 8,
+  drafted: { player_id: string; name: string; overall_no: number; is_mine: boolean }[] = [],
+): SearchHit[] {
+  const q = normalizeName(query)
   if (!q) return []
-  const prefix: PoolPlayer[] = []
-  const contains: PoolPlayer[] = []
-  for (const p of players) {
-    const name = p.name.toLowerCase()
-    if (name.startsWith(q)) prefix.push(p)
-    else if (name.includes(q) || name.split(' ').some((part) => part.startsWith(q))) {
-      contains.push(p)
-    }
+  const squashed = q.replace(/ /g, '')
+
+  const rank = (name: string): number => {
+    const norm = normalizeName(name)
+    if (norm.startsWith(q)) return 0
+    if (norm.split(' ').some((part) => part.startsWith(q))) return 1
+    if (norm.includes(q)) return 2
+    // "ceedee" typed as "cee dee", or the reverse.
+    if (norm.replace(/ /g, '').includes(squashed)) return 3
+    return -1
   }
-  return [...prefix, ...contains].slice(0, limit)
+
+  const hits: { hit: SearchHit; score: number; order: number }[] = []
+  for (const p of players) {
+    const score = rank(p.name)
+    if (score >= 0) hits.push({ hit: { player: p }, score, order: p.rank })
+  }
+  for (const d of drafted) {
+    const score = rank(d.name)
+    if (score < 0) continue
+    const player = players.find((p) => p.player_id === d.player_id)
+    hits.push({
+      // Drafted players are not in the pool, so carry just enough to render.
+      hit: {
+        player: player ?? ({ ...d, position: '', team: null, vorp: 0 } as unknown as PoolPlayer),
+        gone: { overall_no: d.overall_no, is_mine: d.is_mine },
+      },
+      score: score + 10, // always below anyone still available
+      order: d.overall_no,
+    })
+  }
+
+  hits.sort((a, b) => a.score - b.score || a.order - b.order)
+  return hits.slice(0, limit).map((h) => h.hit)
 }

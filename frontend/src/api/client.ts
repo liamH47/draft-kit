@@ -70,6 +70,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ player_id: playerId, is_mine: isMine }),
     }),
+  correctPick: (sessionId: number, overallNo: number, playerId: string) =>
+    request<unknown>(`/api/sessions/${sessionId}/picks/${overallNo}`, {
+      method: 'PUT',
+      body: JSON.stringify({ player_id: playerId }),
+    }),
+
   undo: (sessionId: number) =>
     request<unknown>(`/api/sessions/${sessionId}/picks/undo`, { method: 'POST' }),
 

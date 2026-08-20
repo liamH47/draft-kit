@@ -55,9 +55,20 @@ shows a banner rather than going blank.
    nowhere else.
 2. **Prep the cheat sheet** — tag players **T** (target: take ahead of ADP), **A** (at
    ADP) or **F** (fade: only well past ADP). Tags feed straight into the recommendations.
-3. **Draft** — the quick-entry box stays focused: type a few letters, **Enter** marks a
-   player taken by someone else, **Shift+Enter** marks him as your pick. `/` refocuses
-   the box, and undo fixes a mis-click.
+3. **Draft** — the quick-entry box stays focused and never leaves your hands:
+
+   | key | does |
+   | --- | --- |
+   | `Enter` | mark the highlighted player taken by someone else |
+   | `Shift+Enter` | mark him as your pick |
+   | `Ctrl+T` / `Ctrl+A` / `Ctrl+F` | tag him target / at-ADP / fade |
+   | `/` | jump back to the box from anywhere |
+   | `↑` `↓` | move through matches |
+
+   Type someone already taken and the app offers to **fix that pick** instead of
+   coming back empty — so mistyping pick 43 and noticing at 51 costs one correction
+   rather than nine undos. A search matching nobody says so, because a blank dropdown
+   is indistinguishable from a typo when you are behind the room.
 
 Kickers and defenses are held out of the recommendations until the last three rounds —
 a kicker in round 6 costs a starter, and K1 through K12 barely differ. Three things

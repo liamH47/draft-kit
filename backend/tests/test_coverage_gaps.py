@@ -423,3 +423,36 @@ def test_board_after_the_final_pick(tmp_path, fixture_fetcher):
     assert done["on_the_clock"] is None
     assert done["recommendations"] == []
     assert done["picks_until_my_turn"] is None
+
+
+def test_market_rows_for_players_we_do_not_know_are_skipped(tmp_path, fixture_fetcher):
+    """A market source lists players our universe has never heard of (rookies
+    mid-signing, retirements). They are dropped, not crashed on, and they are
+    reported so an override can be written."""
+
+    def with_a_stranger(spec):
+        raw = fixture_fetcher(spec)
+        if "fantasyfootballcalculator" in spec.url:
+            payload = json.loads(raw.body)
+            payload["players"].append(
+                {
+                    "player_id": 99999,
+                    "name": "Nobody Whatsoever",
+                    "position": "WR",
+                    "team": "FA",
+                    "adp": 200.0,
+                    "bye": 7,
+                }
+            )
+            return RawPayload(body=json.dumps(payload).encode(), content_type=raw.content_type)
+        return raw
+
+    store = SnapshotStore(tmp_path, with_a_stranger)
+    result = build_pool(
+        store,
+        LeagueConfig(scoring=ScoringSettings.preset("half_ppr")),
+        season=2026,
+        scoring_preset="half_ppr",
+    )
+    assert "Nobody Whatsoever" not in {p.name for p in result.players}
+    assert any(u["name"] == "Nobody Whatsoever" for u in result.unmatched)

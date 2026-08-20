@@ -63,6 +63,7 @@ def build_board(
     candidates: list[Candidate] = []
     my_counts: dict[str, int] = {}
     my_players: list[dict[str, Any]] = []
+    drafted_rows: dict[str, dict[str, Any]] = {}
 
     for player in pool_result.players:
         base = bases.get(player.position, {"vorp": 0.0, "vols": 0.0})
@@ -77,6 +78,7 @@ def build_board(
             "adp_delta": (round(player.adp - on_clock, 1) if player.adp is not None else None),
         }
         if player.player_id in drafted:
+            drafted_rows[player.player_id] = row
             if player.player_id in mine:
                 my_counts[player.position] = my_counts.get(player.position, 0) + 1
                 my_players.append(row)
@@ -124,6 +126,18 @@ def build_board(
         "recommendations": [r.__dict__ for r in recommendations],
         "my_players": my_players,
         "my_counts": my_counts,
+        # Who is off the board, with names — so the pick log reads as names and
+        # a search for someone already taken can say so instead of coming back
+        # empty, which is indistinguishable from a typo mid-draft.
+        "drafted": [
+            {
+                **drafted_rows.get(p["player_id"], {"player_id": p["player_id"], "name": "?"}),
+                "overall_no": p["overall_no"],
+                "round_no": p["round_no"],
+                "is_mine": bool(p["is_mine"]),
+            }
+            for p in picks
+        ],
         "picks": picks,
         "on_the_clock": current,
         "picks_until_my_turn": until_turn,
