@@ -27,6 +27,10 @@ from draftkit.engine.baselines import starters_by_position
 NEED_BONUS = 18.0  # a fully unfilled starting slot is worth this much
 ADP_VALUE_PER_PICK = 0.6  # points per pick a player has fallen past his ADP
 ADP_VALUE_CAP = 12.0  # ...but a 40-pick faller isn't 40 picks better
+# The reach side saturates much later: capping both at 12 made a 48-pick reach
+# cost the same as a 20-pick one, which is how a TE going three rounds early
+# still topped the board once the need bonus liked his position.
+ADP_REACH_CAP = 30.0
 TIER_URGENCY_BONUS = 14.0  # his tier probably won't survive to my next turn
 TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -30.0}
 # Enough to bury a kicker beneath any real contributor without scrambling the
@@ -220,7 +224,7 @@ def recommend(
             # board after the room usually takes him. Negative when taking him
             # now would be ahead of where he usually goes.
             delta = current_pick - c.adp
-            value = max(-ADP_VALUE_CAP, min(ADP_VALUE_CAP, delta * ADP_VALUE_PER_PICK))
+            value = max(-ADP_REACH_CAP, min(ADP_VALUE_CAP, delta * ADP_VALUE_PER_PICK))
             score += value
             if delta >= 6:
                 reasons.append(f"falling — ADP {c.adp:.0f}, on the board at {current_pick}")
