@@ -16,10 +16,7 @@ export function DraftBoard() {
   const navigate = useNavigate()
   const { data: board, isLoading, error } = useBoard(sessionId)
   useSessionEvents(sessionId)
-  const { draft, correct, undo, tag, notice, clearNotice } = useDraftActions(
-    sessionId,
-    board?.league.id,
-  )
+  const { draft, correct, undo, tag, notice, clearNotice } = useDraftActions(sessionId)
   const [position, setPosition] = useState('ALL')
 
   // The pick log stores ids; the pool carries the names.

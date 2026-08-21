@@ -30,7 +30,7 @@ export function useSessionEvents(sessionId: number) {
 
 export type Notice = { kind: 'ok' | 'error'; text: string }
 
-export function useDraftActions(sessionId: number, leagueId: number | undefined) {
+export function useDraftActions(sessionId: number) {
   const queryClient = useQueryClient()
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['board', sessionId] })
   // A failed entry that clears the box silently is how the board drifts out of
@@ -80,7 +80,7 @@ export function useDraftActions(sessionId: number, leagueId: number | undefined)
   })
   const tag = useMutation({
     mutationFn: ({ playerId, value }: { playerId: string; value: Tag | null }) =>
-      api.setTag(leagueId!, playerId, value),
+      api.setTag(playerId, value),
     onSuccess: invalidate,
     onError: (err: Error) => setNotice({ kind: 'error', text: `Tag failed — ${err.message}` }),
   })

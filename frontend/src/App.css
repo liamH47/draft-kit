@@ -230,3 +230,8 @@ table.roster .count { opacity: 0.6; font-weight: 400; }
 .pick-log li.mine { font-weight: 700; }
 .pick-log .no { display: inline-block; min-width: 2.6rem; opacity: 0.55; font-variant-numeric: tabular-nums; }
 .pick-log em { font-style: normal; color: var(--steal); }
+
+/* --- tag backup --- */
+.tag-backup { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
+.tag-backup button { font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.2rem 0.7rem; }
+.tag-backup .muted { font-size: 0.85rem; }

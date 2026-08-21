@@ -170,30 +170,57 @@ def tombstone_last_pick(conn: sqlite3.Connection, session_id: int) -> dict | Non
 
 def set_tag(
     conn: sqlite3.Connection,
-    league_id: int,
     player_id: str,
     *,
     tag: str | None,
     note: str | None,
     user_id: str = "local",
 ) -> dict:
+    """Tags are per-user, not per-league: they are opinions about players and
+    they follow you into every draft you run."""
     with conn:
         conn.execute(
-            """INSERT INTO player_tag (user_id, league_id, player_id, tag, note, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?)
-               ON CONFLICT(user_id, league_id, player_id) DO UPDATE SET
+            """INSERT INTO player_tag (user_id, player_id, tag, note, updated_at)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(user_id, player_id) DO UPDATE SET
                  tag = excluded.tag, note = excluded.note, updated_at = excluded.updated_at""",
-            (user_id, league_id, player_id, tag, note, _now()),
+            (user_id, player_id, tag, note, _now()),
         )
     row = conn.execute(
-        "SELECT * FROM player_tag WHERE user_id = ? AND league_id = ? AND player_id = ?",
-        (user_id, league_id, player_id),
+        "SELECT * FROM player_tag WHERE user_id = ? AND player_id = ?",
+        (user_id, player_id),
     ).fetchone()
     return dict(row)
 
 
-def get_tags(conn: sqlite3.Connection, league_id: int, user_id: str = "local") -> dict[str, dict]:
-    rows = conn.execute(
-        "SELECT * FROM player_tag WHERE user_id = ? AND league_id = ?", (user_id, league_id)
-    ).fetchall()
+def get_tags(conn: sqlite3.Connection, user_id: str = "local") -> dict[str, dict]:
+    rows = conn.execute("SELECT * FROM player_tag WHERE user_id = ?", (user_id,)).fetchall()
     return {r["player_id"]: dict(r) for r in rows}
+
+
+def replace_tags(conn: sqlite3.Connection, tags: dict[str, dict], *, user_id: str = "local") -> int:
+    """Merge an exported tag set back in (import). Rows already present are
+    overwritten; rows absent from the import are left alone, so importing a
+    partial file can only add opinions, never silently drop them."""
+    written = 0
+    with conn:
+        for player_id, row in tags.items():
+            tag = row.get("tag") if isinstance(row, dict) else row
+            if tag not in ("target", "at_adp", "fade", None):
+                continue
+            conn.execute(
+                """INSERT INTO player_tag (user_id, player_id, tag, note, updated_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(user_id, player_id) DO UPDATE SET
+                     tag = excluded.tag, note = excluded.note,
+                     updated_at = excluded.updated_at""",
+                (
+                    user_id,
+                    str(player_id),
+                    tag,
+                    (row.get("note") if isinstance(row, dict) else None),
+                    _now(),
+                ),
+            )
+            written += 1
+    return written

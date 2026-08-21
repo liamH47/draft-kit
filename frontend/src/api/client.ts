@@ -79,9 +79,17 @@ export const api = {
   undo: (sessionId: number) =>
     request<unknown>(`/api/sessions/${sessionId}/picks/undo`, { method: 'POST' }),
 
-  setTag: (leagueId: number, playerId: string, tag: Tag | null, note?: string | null) =>
-    request<unknown>(`/api/leagues/${leagueId}/tags/${playerId}`, {
+  // Tags are per-user, not per-league: your targets follow you into every
+  // draft you run.
+  setTag: (playerId: string, tag: Tag | null, note?: string | null) =>
+    request<unknown>(`/api/tags/${playerId}`, {
       method: 'PUT',
       body: JSON.stringify({ tag, note: note ?? null }),
+    }),
+  listTags: () => request<Record<string, { tag: Tag | null; note: string | null }>>('/api/tags'),
+  importTags: (tags: Record<string, { tag: Tag | null; note: string | null }>) =>
+    request<{ imported: number }>('/api/tags/import', {
+      method: 'POST',
+      body: JSON.stringify({ tags }),
     }),
 }

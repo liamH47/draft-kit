@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -12,6 +13,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="DRAFTKIT_", env_file=".env", extra="ignore")
 
+    # Resolved to an absolute path below: a relative default silently means
+    # "wherever this process was launched from", which is how a user ends up
+    # with two databases and wonders where their tags went.
     data_dir: Path = Path("data")
     static_dir: Path | None = None  # set in prod to the built frontend dist/
     cors_origins: list[str] = []  # dev only; prod is same-origin
@@ -24,6 +28,11 @@ class Settings(BaseSettings):
     # body, a response, or a log line.
     espn_s2: str | None = None
     espn_swid: str | None = None
+
+    @field_validator("data_dir")
+    @classmethod
+    def _absolute(cls, value: Path) -> Path:
+        return value.expanduser().resolve()
 
     @property
     def db_path(self) -> Path:

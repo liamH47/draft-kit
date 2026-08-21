@@ -42,7 +42,6 @@ def test_unknown_ids_are_404s_not_500s(client):
     assert client.get("/api/sessions/999/board").status_code == 404
     assert client.post("/api/sessions/999/picks", json={"player_id": "x"}).status_code == 404
     assert client.post("/api/sessions/999/picks/undo").status_code == 404
-    assert client.get("/api/leagues/999/tags").status_code == 404
     assert client.post("/api/sessions", json={"league_id": 999}).status_code == 404
 
 
@@ -323,8 +322,13 @@ def test_http_fetch_raises_on_error_status(monkeypatch):
 
 
 def test_migrations_are_idempotent(tmp_path):
+    """Every migration runs once on a fresh database and never again. Asserted
+    as a property, not a hardcoded list, so adding one cannot break this."""
+    from draftkit.db.connection import MIGRATIONS_DIR
+
+    on_disk = sorted(p.name for p in MIGRATIONS_DIR.glob("*.sql"))
     conn = connect(tmp_path / "app.db")
-    assert migrate(conn) == ["001_init.sql"]
+    assert migrate(conn) == on_disk
     assert migrate(conn) == []
 
 

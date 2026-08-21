@@ -41,7 +41,7 @@ def build_board(
         overrides_path=_OVERRIDES,
     )
     picks = repo.live_picks(conn, session["id"])
-    tags = repo.get_tags(conn, league_row["id"])
+    tags = repo.get_tags(conn)
 
     drafted = {p["player_id"] for p in picks}
     mine = [p["player_id"] for p in picks if p["is_mine"]]

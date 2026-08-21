@@ -1,5 +1,8 @@
 """Draft core: league setup, pick entry, undo, tags, and crash-safe resume."""
 
+import json
+from unittest.mock import ANY
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -118,24 +121,81 @@ def test_draft_cannot_exceed_its_length(client):
 
 
 def test_tags_and_notes_roundtrip(client):
-    league = make_league(client)
-    lid = league["id"]
-    client.put(f"/api/leagues/{lid}/tags/4034", json={"tag": "target", "note": "worth a reach"})
-    client.put(f"/api/leagues/{lid}/tags/7564", json={"tag": "fade"})
-    tags = client.get(f"/api/leagues/{lid}/tags").json()
+    make_league(client)
+    client.put("/api/tags/4034", json={"tag": "target", "note": "worth a reach"})
+    client.put("/api/tags/7564", json={"tag": "fade"})
+    tags = client.get("/api/tags").json()
     assert tags["4034"]["tag"] == "target"
     assert tags["4034"]["note"] == "worth a reach"
     assert tags["7564"]["tag"] == "fade"
 
     # Re-tagging the same player updates in place, and null clears.
-    client.put(f"/api/leagues/{lid}/tags/4034", json={"tag": "at_adp"})
-    assert client.get(f"/api/leagues/{lid}/tags").json()["4034"]["tag"] == "at_adp"
-    client.put(f"/api/leagues/{lid}/tags/4034", json={})
-    assert client.get(f"/api/leagues/{lid}/tags").json()["4034"]["tag"] is None
+    client.put("/api/tags/4034", json={"tag": "at_adp"})
+    assert client.get("/api/tags").json()["4034"]["tag"] == "at_adp"
+    client.put("/api/tags/4034", json={})
+    assert client.get("/api/tags").json()["4034"]["tag"] is None
 
 
-def test_tags_rejected_for_unknown_league(client):
-    assert client.put("/api/leagues/999/tags/1", json={"tag": "target"}).status_code == 404
+def test_tags_follow_the_user_into_every_league(client):
+    """Tags are opinions about players. Keying them by league meant every new
+    draft started blank with last week's targets stranded behind it."""
+    first = make_league(client, name="August mock")
+    client.put("/api/tags/4034", json={"tag": "target", "note": "my guy"})
+
+    second = make_league(client, name="The real one")
+    assert second["id"] != first["id"]
+    tags = client.get("/api/tags").json()
+    assert tags["4034"]["tag"] == "target"
+    assert tags["4034"]["note"] == "my guy"
+
+
+def test_tags_are_mirrored_to_a_json_file_and_can_be_restored(tmp_path):
+    """SQLite is the source of truth; the JSON file is the copy you can read,
+    edit, back up — and restore from when the database is gone."""
+    settings = Settings(data_dir=tmp_path / "data")
+    app = create_app(settings)
+    client = TestClient(app)
+    client.put("/api/tags/4034", json={"tag": "target", "note": "keep"})
+    client.put("/api/tags/7564", json={"tag": "fade"})
+
+    mirror = settings.data_dir / "tags.json"
+    written = json.loads(mirror.read_text(encoding="utf-8"))
+    assert written["4034"] == {"tag": "target", "note": "keep", "updated_at": ANY}
+    assert written["7564"]["tag"] == "fade"
+
+    # Lose the database entirely; the file still has the cheat sheet.
+    app.state.db.close()
+    (settings.data_dir / "app.db").unlink()
+    recovered = TestClient(create_app(settings))
+    assert recovered.get("/api/tags").json() == {}
+    assert recovered.post("/api/tags/restore").json()["restored"] == 2
+    assert recovered.get("/api/tags").json()["4034"]["tag"] == "target"
+
+
+def test_importing_tags_adds_without_dropping_what_is_missing(client):
+    client.put("/api/tags/4034", json={"tag": "target"})
+    body = {"tags": {"7564": {"tag": "fade", "note": None}, "9999": {"tag": "nonsense"}}}
+    resp = client.post("/api/tags/import", json=body)
+    assert resp.status_code == 422  # an unknown tag value is rejected outright
+
+    ok = client.post("/api/tags/import", json={"tags": {"7564": {"tag": "fade"}}})
+    assert ok.json()["imported"] == 1
+    tags = client.get("/api/tags").json()
+    assert tags["4034"]["tag"] == "target"  # untouched by the import
+    assert tags["7564"]["tag"] == "fade"
+
+
+def test_restore_without_a_file_or_with_a_broken_one_says_so(tmp_path):
+    settings = Settings(data_dir=tmp_path / "data")
+    client = TestClient(create_app(settings))
+    assert client.post("/api/tags/restore").status_code == 404
+
+    mirror = settings.data_dir / "tags.json"
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    mirror.write_text("not json at all", encoding="utf-8")
+    assert client.post("/api/tags/restore").status_code == 422
+    mirror.write_text('["a list, not a mapping"]', encoding="utf-8")
+    assert client.post("/api/tags/restore").status_code == 422
 
 
 def test_board_survives_a_restart(tmp_path):
@@ -164,11 +224,11 @@ def test_tags_set_before_the_draft_are_visible_during_it(tmp_path):
     settings = Settings(data_dir=tmp_path / "data")
     prep = TestClient(create_app(settings))
     league = make_league(prep)
-    prep.put(f"/api/leagues/{league['id']}/tags/4034", json={"tag": "target"})
+    prep.put("/api/tags/4034", json={"tag": "target"})
 
     draft_day = TestClient(create_app(settings))
-    session = make_session(draft_day, league["id"])
-    tags = draft_day.get(f"/api/leagues/{session['league']['id']}/tags").json()
+    make_session(draft_day, league["id"])
+    tags = draft_day.get("/api/tags").json()
     assert tags["4034"]["tag"] == "target"
 
 
@@ -274,3 +334,39 @@ def test_corrections_survive_a_restart(tmp_path):
     after = TestClient(create_app(settings)).get(f"/api/sessions/{sid}").json()
     assert after == before
     assert after["drafted_player_ids"][1] == "corrected"
+
+
+def test_a_hand_edited_tag_file_skips_junk_rather_than_failing(tmp_path):
+    """The mirror is meant to be edited by hand, so a typo in one entry must
+    cost that entry and nothing else."""
+    settings = Settings(data_dir=tmp_path / "data")
+    client = TestClient(create_app(settings))
+    mirror = settings.data_dir / "tags.json"
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    mirror.write_text(
+        json.dumps(
+            {
+                "4034": {"tag": "target", "note": "good"},
+                "7564": {"tag": "trget"},  # typo: not a real tag
+                "1234": "fade",  # a bare value rather than an object
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert client.post("/api/tags/restore").json()["restored"] == 2
+    tags = client.get("/api/tags").json()
+    assert tags["4034"]["tag"] == "target"
+    assert tags["1234"]["tag"] == "fade"
+    assert "7564" not in tags
+
+
+def test_a_tag_survives_a_mirror_that_cannot_be_written(tmp_path):
+    """The database is the source of truth. A read-only disk costs the backup
+    copy, never the tag itself."""
+    settings = Settings(data_dir=tmp_path / "data")
+    client = TestClient(create_app(settings))
+    (settings.data_dir).mkdir(parents=True, exist_ok=True)
+    # A directory where the file belongs: every write raises OSError.
+    (settings.data_dir / "tags.json").mkdir()
+    assert client.put("/api/tags/4034", json={"tag": "target"}).status_code == 200
+    assert client.get("/api/tags").json()["4034"]["tag"] == "target"

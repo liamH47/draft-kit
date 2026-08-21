@@ -71,7 +71,6 @@ def test_undo_puts_a_player_back_on_the_board(client, session):
 
 
 def test_tags_reach_the_board_and_move_recommendations(client, session):
-    lid = session["league_id"]
     data = board(client, session)
     # Tag the runner-up recommendation: the tag must reach his board row, his
     # recommendation reasons, and lift him over the old #1. (Whether a tag can
@@ -79,7 +78,7 @@ def test_tags_reach_the_board_and_move_recommendations(client, session):
     # that depended on the exact score gaps broke every time the model moved.)
     runner_up = data["recommendations"][1]
     target = runner_up["player_id"]
-    client.put(f"/api/leagues/{lid}/tags/{target}", json={"tag": "target"})
+    client.put(f"/api/tags/{target}", json={"tag": "target"})
 
     tagged = board(client, session)
     row = next(p for p in tagged["available"] if p["player_id"] == target)
@@ -90,9 +89,8 @@ def test_tags_reach_the_board_and_move_recommendations(client, session):
 
 
 def test_fade_tag_removes_a_player_from_the_top_recommendations(client, session):
-    lid = session["league_id"]
     top = board(client, session)["recommendations"][0]["player_id"]
-    client.put(f"/api/leagues/{lid}/tags/{top}", json={"tag": "fade"})
+    client.put(f"/api/tags/{top}", json={"tag": "fade"})
     after = board(client, session)
     assert after["recommendations"][0]["player_id"] != top
 

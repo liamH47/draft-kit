@@ -3,13 +3,14 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
+import { TagBackup } from '../components/TagBackup'
 import type { PoolPlayer, Tag } from '../api/types'
 import { PlayerTable } from '../components/PlayerTable'
 import { PositionFilter } from '../components/PositionFilter'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
 /** Pre-draft prep: mark who you'd reach for and who you'd let slide.
- *  Tags are per league, so a PPR board and a half-PPR board differ. */
+ *  Tags are yours, not a league's — they follow you into every draft. */
 export function CheatSheet() {
   const leagueId = Number(useParams().leagueId)
   const queryClient = useQueryClient()
@@ -26,7 +27,7 @@ export function CheatSheet() {
 
   const tag = useMutation({
     mutationFn: ({ playerId, value }: { playerId: string; value: Tag | null }) =>
-      api.setTag(leagueId, playerId, value),
+      api.setTag(playerId, value),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['board', sessionId] }),
   })
 
@@ -58,8 +59,9 @@ export function CheatSheet() {
       <p className="muted">
         <strong>T</strong> target (take ahead of ADP) · <strong>A</strong> at ADP ·{' '}
         <strong>F</strong> fade (only well past ADP). Tags feed straight into the
-        recommendations during your draft.
+        recommendations during your draft, and they follow you into every league.
       </p>
+      <TagBackup />
       <div className="sheet-controls">
         <PositionFilter value={position} onChange={setPosition} />
         <label className="toggle">
