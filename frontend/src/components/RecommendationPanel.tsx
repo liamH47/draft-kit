@@ -14,6 +14,18 @@ export function RecommendationPanel({ recommendations, onDraft }: Props) {
           <div className="rec-head">
             <strong>{r.name}</strong>
             <span className="pos">{r.position}</span>
+            {r.vona !== null && (
+              <span
+                className={r.vona >= 12 ? 'wait hot' : 'wait'}
+                title={
+                  r.vona >= 12
+                    ? `Waiting costs about ${r.vona.toFixed(0)} points — the next ${r.position} likely to reach your turn is well behind him`
+                    : `${r.position} keeps: someone about as good should still be there at your next pick`
+                }
+              >
+                {r.vona >= 12 ? `wait costs ${r.vona.toFixed(0)}` : 'can wait'}
+              </span>
+            )}
             <span className="score" title="Composite score">
               {r.score.toFixed(0)}
             </span>

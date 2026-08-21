@@ -7,7 +7,8 @@ sum of interpretable parts:
   VORP              — the backbone: value over a replacement-level player
   roster need       — unfilled starting slots, decaying as they fill
   ADP value         — is he falling past his market price, or a reach?
-  tier urgency      — will this tier survive until my next turn?
+  scarcity (VONA)   — what waiting costs: how much better he is than the man
+                      who will still be there at my next pick
   list vs market    — a small nudge: where the room's own list disagrees with
                       the market, weighted down because it predicts behaviour
                       rather than measuring value
@@ -31,7 +32,12 @@ ADP_VALUE_CAP = 12.0  # ...but a 40-pick faller isn't 40 picks better
 # cost the same as a 20-pick one, which is how a TE going three rounds early
 # still topped the board once the need bonus liked his position.
 ADP_REACH_CAP = 30.0
-TIER_URGENCY_BONUS = 14.0  # his tier probably won't survive to my next turn
+# Scarcity, priced as VONA: how much better he is than the best player at his
+# position likely to survive to my next pick. Replaces a tier-count rule that
+# fired for nearly every tiered player at a full snake gap, which made it a
+# constant rather than a signal. This one is zero when the position keeps.
+SCARCITY_PER_POINT = 0.5
+SCARCITY_CAP = 16.0
 TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -30.0}
 # Enough to bury a kicker beneath any real contributor without scrambling the
 # ordering among kickers themselves.
@@ -63,6 +69,10 @@ class Candidate:
     # (autodrafters, anyone drafting off the platform's default order) reach for
     # him sooner than the market would.
     list_vs_market: float | None = None
+    # Value over the next available player at his position, measured at my
+    # NEXT pick. Near zero means the position keeps and the pick is better
+    # spent elsewhere; large means the drop-off behind him is real.
+    vona: float | None = None
 
 
 @dataclass
@@ -72,6 +82,7 @@ class Recommendation:
     position: str
     score: float
     vorp: float
+    vona: float | None = None
     reasons: list[str] = field(default_factory=list)
 
 
@@ -163,13 +174,6 @@ def recommend(
     }
     must_fill = bool(shortfall) and sum(shortfall.values()) >= rounds_left
 
-    # How many players remain in each (position, tier) — the input to urgency.
-    tier_counts: dict[tuple[str, int], int] = {}
-    for c in available:
-        if c.tier is not None:
-            key = (c.position, c.tier)
-            tier_counts[key] = tier_counts.get(key, 0) + 1
-
     out: list[Recommendation] = []
     for c in available:
         score = c.vorp
@@ -231,17 +235,23 @@ def recommend(
             elif delta <= -6:
                 reasons.append(f"a reach — ADP {c.adp:.0f} vs pick {current_pick}")
 
-        if c.tier is not None and human_until_turn and not held_back:
-            left = tier_counts.get((c.position, c.tier), 0)
-            if left <= human_until_turn:
-                score += TIER_URGENCY_BONUS * human_share
-                plural = "player" if left == 1 else "players"
-                detail = (
-                    f"{human_until_turn} human picks until your turn"
-                    if autodraft_count
-                    else f"{picks_until_turn} picks until your turn"
+        # What waiting costs. Autodrafters walk a list and never start a run,
+        # so a room that is half robots drains a position more slowly — the
+        # same human_share that used to damp tier urgency damps this.
+        if c.vona is not None and not held_back:
+            urgency = max(0.0, min(SCARCITY_CAP, c.vona * SCARCITY_PER_POINT)) * human_share
+            score += urgency
+            # A room of robots never starts a run, so scarcity buys nothing —
+            # and must not claim to. The reason follows the score, not the gap.
+            if c.vona >= 12 and urgency > 0:
+                reasons.append(
+                    f"waiting costs ~{c.vona:.0f} pts — the next {c.position} likely "
+                    "to reach your turn is well behind him"
                 )
-                reasons.append(f"only {left} {plural} left in {c.position} tier {c.tier}, {detail}")
+            elif c.vona <= 3 and human_until_turn:
+                reasons.append(
+                    f"{c.position} keeps — someone about as good should last to your next pick"
+                )
 
         # Smallest term in the model, and the only one about other people.
         if c.list_vs_market is not None and not held_back:
@@ -277,6 +287,7 @@ def recommend(
                 position=c.position,
                 score=round(score, 1),
                 vorp=round(c.vorp, 1),
+                vona=None if c.vona is None else round(c.vona, 1),
                 reasons=reasons,
             )
         )

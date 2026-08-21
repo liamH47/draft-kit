@@ -114,23 +114,25 @@ def test_reaches_keep_hurting_past_the_value_cap():
     assert reach_absurd.score == -30.0
 
 
-def test_tier_about_to_empty_is_urgent():
-    # Two players left in RB tier 2 and 5 picks until my turn -> urgent.
-    scarce = rec(
-        [cand("a", "RB", 20, tier=2), cand("b", "RB", 19, tier=2)],
-        picks_until_turn=5,
-    )[0]
-    assert any("left in RB tier 2" in r for r in scarce.reasons)
-
-    # A deep tier is not urgent.
-    deep = rec([cand(str(i), "RB", 20, tier=2) for i in range(10)], picks_until_turn=2)[0]
-    assert not any("left in RB tier" in r for r in deep.reasons)
+def test_a_position_about_to_fall_off_is_urgent():
+    """The whole point of scarcity: a real drop behind him is worth paying
+    for, and a position that keeps is not."""
+    steep = rec([cand("a", "RB", 40, vona=30.0)])[0]
+    flat = rec([cand("a", "RB", 40, vona=1.0)])[0]
+    assert steep.score > flat.score
+    assert any("waiting costs" in r for r in steep.reasons)
 
 
-def test_no_tier_urgency_when_on_the_clock():
-    # picks_until_turn == 0 means I'm picking right now; nothing can be sniped.
-    out = rec([cand("a", "RB", 20, tier=1)], picks_until_turn=0)[0]
-    assert not any("tier" in r for r in out.reasons)
+def test_a_position_that_keeps_says_so():
+    out = rec([cand("a", "RB", 40, vona=1.0)], picks_until_turn=10)[0]
+    assert any("RB keeps" in r for r in out.reasons)
+
+
+def test_scarcity_is_absent_when_it_cannot_be_measured():
+    """No next pick (the final round) means nothing to wait for."""
+    out = rec([cand("a", "RB", 20)])[0]
+    assert out.vona is None
+    assert not any("waiting costs" in r or "keeps" in r for r in out.reasons)
 
 
 def test_target_tag_lifts_a_player_over_a_better_one():
@@ -244,22 +246,15 @@ def test_no_must_fill_once_the_lineup_is_full():
 # --- autodrafters -----------------------------------------------------------
 
 
-def test_autodrafters_damp_tier_urgency():
-    """Half the room on autopilot cannot start a run, so the urgency to reach
-    is genuinely lower even though the pick count is unchanged."""
-    field = [cand("a", "RB", 20, tier=2), cand("b", "RB", 19, tier=2)]
+def test_autodrafters_damp_scarcity():
+    """Half the room on autopilot cannot start a run, so a position drains
+    more slowly even though the pick count is unchanged."""
+    field = [cand("a", "RB", 20, vona=20.0)]
     humans = rec(field, picks_until_turn=8, autodraft_count=0)[0]
     robots = rec(field, picks_until_turn=8, autodraft_count=6)[0]
     assert robots.score < humans.score
 
 
-def test_urgency_reasons_count_humans_not_seats():
-    field = [cand("a", "RB", 20, tier=1), cand("b", "RB", 19, tier=1)]
-    out = rec(field, picks_until_turn=8, autodraft_count=6)
-    assert any("human picks until your turn" in r for r in out[0].reasons)
-
-
 def test_a_fully_automated_room_creates_no_urgency():
-    field = [cand("a", "RB", 20, tier=1)]
-    out = rec(field, picks_until_turn=8, autodraft_count=12)
-    assert not any("tier" in r for r in out[0].reasons)
+    out = rec([cand("a", "RB", 20, vona=20.0)], picks_until_turn=8, autodraft_count=12)[0]
+    assert not any("waiting costs" in r for r in out.reasons)

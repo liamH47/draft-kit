@@ -172,3 +172,151 @@ def test_rows_we_cannot_resolve_are_skipped_not_crashed_on(tmp_path):
     by_name = build(tmp_path, fetch)
     assert "Nobody Atall" not in by_name
     assert by_name["Christian McCaffrey"].points > 0
+
+
+def test_market_movement_is_reported_once_there_is_history(tmp_path, fixture_fetcher):
+    """An injury ahead of somebody shows up as his ADP falling. It needs two
+    readings of the SAME market to mean anything, so it is absent until then."""
+    import json as _json
+    from datetime import UTC, datetime, timedelta
+
+    store = SnapshotStore(tmp_path / "snaps", fixture_fetcher)
+    league_cfg = league()
+    first = {p.name: p for p in build_pool(store, league_cfg, season=2026).players}
+    assert first["Christian McCaffrey"].adp_shift is None  # one reading is not a trend
+
+    # Backdate a second FFC snapshot in which he was going three picks later.
+    directory = next((tmp_path / "snaps" / "ffcalc").iterdir())
+    payload = _json.loads(next(directory.glob("*.snap")).read_bytes())
+    for row in payload["players"]:
+        if row["name"] == "Christian McCaffrey":
+            row["adp"] = row["adp"] + 3.0
+    stamp = "20260101T000000"
+    (directory / f"{stamp}.snap").write_bytes(_json.dumps(payload).encode())
+    (directory / f"{stamp}.meta.json").write_text(
+        _json.dumps(
+            {
+                "fetched_at": (datetime.now(UTC) - timedelta(hours=8)).isoformat(),
+                "content_type": "application/json",
+            }
+        )
+    )
+
+    moved = {p.name: p for p in build_pool(store, league_cfg, season=2026).players}
+    assert moved["Christian McCaffrey"].adp_shift == pytest.approx(-3.0)
+    # Everyone else held still.
+    assert moved["Jahmyr Gibbs"].adp_shift == pytest.approx(0.0)
+
+
+def test_a_broken_history_read_costs_movement_and_nothing_else(tmp_path, fixture_fetcher):
+    """Movement is a nicety; the board is not. If the history read throws,
+    the pool must still build."""
+    store = SnapshotStore(tmp_path / "snaps", fixture_fetcher)
+
+    def explode(*args, **kwargs):
+        raise RuntimeError("history is unreadable")
+
+    store.earliest_within = explode  # type: ignore[method-assign]
+    by_name = {p.name: p for p in build_pool(store, league(), season=2026).players}
+    assert len(by_name) >= 15
+    assert by_name["Christian McCaffrey"].adp_shift is None
+
+
+def test_a_previous_snapshot_row_we_cannot_resolve_is_ignored(tmp_path, fixture_fetcher):
+    """Yesterday's file can name players today's does not, and vice versa."""
+    import json as _json
+    from datetime import UTC, datetime, timedelta
+
+    store = SnapshotStore(tmp_path / "snaps", fixture_fetcher)
+    build_pool(store, league(), season=2026)
+    directory = next((tmp_path / "snaps" / "ffcalc").iterdir())
+    payload = _json.loads(next(directory.glob("*.snap")).read_bytes())
+    payload["players"].append(
+        {"name": "Departed Camp Body", "position": "WR", "team": "SF", "adp": 190.0}
+    )
+    for row in payload["players"]:
+        row.pop("adp", None) if row["name"] == "Jahmyr Gibbs" else None
+    stamp = "20260101T000000"
+    (directory / f"{stamp}.snap").write_bytes(_json.dumps(payload).encode())
+    (directory / f"{stamp}.meta.json").write_text(
+        _json.dumps(
+            {
+                "fetched_at": (datetime.now(UTC) - timedelta(hours=8)).isoformat(),
+                "content_type": "application/json",
+            }
+        )
+    )
+    by_name = {p.name: p for p in build_pool(store, league(), season=2026).players}
+    # A player with no ADP in the old file has nothing to compare against.
+    assert by_name["Jahmyr Gibbs"].adp_shift is None
+    assert by_name["Christian McCaffrey"].adp_shift == pytest.approx(0.0)
+
+
+def test_a_market_bucket_never_becomes_a_draft_price(tmp_path, fixture_fetcher):
+    """A source that dumps its undrafted players at one trailing number must
+    not make them look like players falling to it."""
+    import json as _json
+
+    def fetch(spec):
+        for fragment, path, content_type in _URL_TO_FIXTURE:
+            if fragment not in spec.url:
+                continue
+            body = path.read_bytes()
+            if fragment == "lm-api-reads":
+                payload = _json.loads(body)
+                # Everybody ESPN does not price lands in one jittered band.
+                for i, entry in enumerate(payload):
+                    player = entry.get("player") or entry
+                    player.setdefault("ownership", {})["averageDraftPosition"] = (
+                        170.0 + (i % 4) * 0.01
+                    )
+                # ...and there are always far more of them than of real prices.
+                for i in range(40):
+                    payload.append(
+                        {
+                            "id": 900000 + i,
+                            "player": {
+                                "id": 900000 + i,
+                                "fullName": f"Undrafted Body {i}",
+                                "defaultPositionId": 3,
+                                "ownership": {"averageDraftPosition": 170.0 + (i % 4) * 0.01},
+                            },
+                        }
+                    )
+                body = _json.dumps(payload).encode()
+            return RawPayload(body=body, content_type=content_type)
+        raise AssertionError(f"no fixture for {spec.url}")
+
+    by_name = build(tmp_path, fetch)
+    assert all("espn" not in p.adp_by_source for p in by_name.values())
+    # The other markets still price the board.
+    assert by_name["Christian McCaffrey"].adp is not None
+
+
+def test_a_player_no_market_prices_has_no_edge_over_the_market(tmp_path, fixture_fetcher):
+    """You cannot be a sleeper relative to a market that never listed you."""
+    import json as _json
+
+    def fetch(spec):
+        for fragment, path, content_type in _URL_TO_FIXTURE:
+            if fragment not in spec.url:
+                continue
+            body = path.read_bytes()
+            if fragment == "projections/nfl":
+                payload = _json.loads(body)
+                for row in payload:
+                    if row.get("player_id") == "4034":  # McCaffrey: unpriced everywhere
+                        row["stats"] = {
+                            k: v for k, v in row["stats"].items() if not k.startswith("adp_")
+                        }
+                body = _json.dumps(payload).encode()
+            if fragment in ("fantasyfootballcalculator", "lm-api-reads", "pub-api-ro"):
+                raise ConnectionError("no market today")
+            return RawPayload(body=body, content_type=content_type)
+        raise AssertionError(f"no fixture for {spec.url}")
+
+    by_name = build(tmp_path, fetch)
+    cmc = by_name["Christian McCaffrey"]
+    assert cmc.adp is None
+    assert cmc.market_edge is None
+    assert cmc.rank >= 1  # still ranked on his own merits

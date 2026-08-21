@@ -13,7 +13,7 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -121,6 +121,38 @@ class SnapshotStore:
         fetched_at = datetime.now(UTC)
         self._write(directory, raw, fetched_at)
         return dataset, SnapshotMeta(adapter.name, fetched_at, False, False)
+
+    def earliest_within(
+        self, adapter: SourceAdapter, params: dict[str, Any] | None, max_age: timedelta
+    ) -> tuple[SourceDataset, datetime] | None:
+        """The OLDEST snapshot still inside `max_age`, for comparing against
+        now: what a source said yesterday against what it says today.
+
+        Returns None when only one snapshot exists, which is the honest answer
+        before the store has any history to compare — a player cannot be
+        called a riser on the strength of a single reading.
+        """
+        directory = self._dir(adapter, params or {})
+        if not directory.is_dir():
+            return None
+        cutoff = datetime.now(UTC) - max_age
+        newest_seen: datetime | None = None
+        oldest: tuple[SourceDataset, datetime] | None = None
+        for path in sorted(directory.glob("*.snap"), reverse=True):
+            try:
+                raw, fetched_at = self._load(path)
+            except Exception:
+                continue
+            if newest_seen is None:
+                newest_seen = fetched_at
+                continue  # that one is "now"; we want something to compare it to
+            if fetched_at < cutoff:
+                break
+            try:
+                oldest = (adapter.parse(raw), fetched_at)
+            except Exception:
+                continue
+        return oldest
 
     def freshness_token(self) -> tuple:
         """Cheap fingerprint of the snapshot tree, for callers that cache data

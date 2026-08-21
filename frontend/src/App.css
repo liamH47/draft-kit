@@ -235,3 +235,42 @@ table.roster .count { opacity: 0.6; font-weight: 400; }
 .tag-backup { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin: 0.6rem 0; }
 .tag-backup button { font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.2rem 0.7rem; }
 .tag-backup .muted { font-size: 0.85rem; }
+
+/* --- board flags: value, and price on the move --- */
+.flag {
+  margin-left: 0.35rem; padding: 0 0.3rem; border-radius: 3px;
+  font-size: 0.68rem; font-weight: 700; vertical-align: middle; cursor: help;
+}
+.flag.sleeper { background: rgba(46, 158, 79, 0.16); color: var(--steal); text-transform: uppercase; letter-spacing: 0.03em; }
+.flag.rising { color: var(--steal); }
+.flag.falling { color: var(--reach); }
+td.vona-hot { color: var(--tier-1); font-weight: 700; }
+.rec-head .wait {
+  font-size: 0.68rem; padding: 0.05rem 0.35rem; border-radius: 3px;
+  background: var(--code-bg, #f2f1ea); opacity: 0.8; cursor: help;
+}
+.rec-head .wait.hot { background: rgba(214, 69, 69, 0.14); color: var(--tier-1); opacity: 1; font-weight: 700; }
+
+/* Names must never wrap: under a pick clock the board is scanned, not read.
+   The table scrolls sideways instead, and the draft buttons stay pinned. */
+table.pool .name-cell { white-space: nowrap; }
+table.pool td, table.pool th { padding-left: 0.3rem; padding-right: 0.3rem; }
+
+/* The pool table carries twelve columns now, and the draft buttons are pinned
+   to the right edge — so anything the table cannot fit ends up underneath
+   them. Buy the width back from the side pane and the type size rather than
+   letting the tag buttons disappear. */
+.side-pane { flex: 0 0 17rem; }
+table.pool { font-size: 0.84rem; }
+table.pool th { font-size: 0.68rem; }
+
+/* The app shell centres everything at a fixed 1126px, which is right for the
+   setup page and wrong for a draft board: on a wide monitor it throws away
+   exactly the space the pool table needs, pushing the tag buttons under the
+   pinned draft buttons. The board takes the whole window instead. */
+.board {
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(50% - 50vw);
+  box-sizing: border-box;
+}

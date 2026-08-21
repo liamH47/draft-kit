@@ -14,6 +14,15 @@ export type PoolPlayer = {
   tier: number | null
   tier_expert: number | null
   consensus_rank: number | null
+  // Places between where the room drafts him and where we rate him: positive
+  // means he lasts past his worth.
+  market_edge: number | null
+  // How his price has moved since the oldest snapshot we hold. Negative means
+  // the room is taking him earlier than it was.
+  adp_shift: number | null
+  // What waiting costs: how much better he is than the next player at his
+  // position likely to survive to your next pick. Only set during a draft.
+  vona?: number | null
   rank: number
   pos_rank: number
   vorp: number
@@ -29,6 +38,7 @@ export type Recommendation = {
   position: string
   score: number
   vorp: number
+  vona: number | null
   reasons: string[]
 }
 

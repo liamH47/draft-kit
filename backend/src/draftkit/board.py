@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from draftkit.db import repo
+from draftkit.engine.availability import vona
 from draftkit.engine.recommend import Candidate, recommend
 from draftkit.engine.snake import gap_after, picks_until_my_turn, round_and_slot
 from draftkit.models.league import LeagueConfig
@@ -62,6 +63,14 @@ def build_board(
             gap_after(my_round, config.my_slot, num_teams) - 1 if my_round < rounds else None
         )
 
+    # The pick this advice is for, and the one after it — the gap between them
+    # is what "waiting" actually costs, and it is the whole input to scarcity.
+    my_pick = on_clock if until_turn is None else on_clock + until_turn
+    my_round = round_and_slot(min(my_pick, total), num_teams)[0]
+    next_pick = (
+        my_pick + gap_after(my_round, config.my_slot, num_teams) if my_round < rounds else None
+    )
+
     available: list[dict[str, Any]] = []
     candidates: list[Candidate] = []
     my_counts: dict[str, int] = {}
@@ -75,6 +84,7 @@ def build_board(
     # Numbering must never mix within a position: an uncovered player at a
     # covered position gets no tier rather than a colliding gap tier.
     expert_positions = {p.position for p in pool_result.players if p.tier_expert}
+    by_position: dict[str, list[Any]] = {}
 
     for player in pool_result.players:
         tag_row = tags.get(player.player_id, {})
@@ -90,6 +100,7 @@ def build_board(
                 my_players.append(row)
             continue
         available.append(row)
+        by_position.setdefault(player.position, []).append(player)
         candidates.append(
             Candidate(
                 player_id=player.player_id,
@@ -106,6 +117,21 @@ def build_board(
                 list_vs_market=player.list_vs_market,
             )
         )
+
+    # Second pass: VONA compares a player against everyone still available at
+    # his position, so it cannot be computed until the first pass has seen
+    # them all.
+    vona_by_id: dict[str, float] = {}
+    if next_pick is not None:
+        for players in by_position.values():
+            field = [(p.value, p.adp, p.adp_stdev) for p in players]
+            for i, player in enumerate(players):
+                others = field[:i] + field[i + 1 :]
+                vona_by_id[player.player_id] = round(vona(player.value, others, next_pick), 1)
+        for row in available:
+            row["vona"] = vona_by_id.get(row["player_id"])
+        for candidate in candidates:
+            candidate.vona = vona_by_id.get(candidate.player_id)
 
     recommendations = (
         recommend(

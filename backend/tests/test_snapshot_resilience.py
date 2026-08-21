@@ -6,11 +6,12 @@ previously failed hard.
 """
 
 import json
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from draftkit.snapshots.store import SnapshotError, SnapshotStore
-from draftkit.sources import sleeper_players
+from draftkit.sources import borischen_tiers, sleeper_players
 from draftkit.sources.base import RawPayload
 
 
@@ -173,3 +174,65 @@ def test_requests_identify_themselves(monkeypatch):
     http_fetch(RequestSpec(url="https://x.test", headers={"X-Custom": "kept"}))
     assert seen["User-Agent"] == USER_AGENT
     assert seen["X-Custom"] == "kept"  # adapter headers still win
+
+
+# --- history: what a source said before -------------------------------------
+
+
+def test_no_history_means_no_comparison(tmp_path, fixture_fetcher):
+    """One reading is not a trend. A player cannot be called a riser on the
+    strength of the only number we have ever held."""
+    store = SnapshotStore(tmp_path, fixture_fetcher)
+    store.get(sleeper_players)
+    assert store.earliest_within(sleeper_players, None, timedelta(days=4)) is None
+    assert store.earliest_within(borischen_tiers, {"format": "ppr"}, timedelta(days=4)) is None
+
+
+def test_history_returns_the_oldest_reading_inside_the_window(tmp_path, fixture_fetcher):
+    store = SnapshotStore(tmp_path, fixture_fetcher)
+    store.get(sleeper_players)
+    directory = next((tmp_path / "sleeper_players").iterdir())
+    original = next(directory.glob("*.snap"))
+    meta = json.loads(original.with_suffix(".meta.json").read_text())
+
+    now = datetime.now(UTC)
+    for age_days, stamp in ((1, "20260101T000000"), (99, "19990101T000000")):
+        (directory / f"{stamp}.snap").write_bytes(original.read_bytes())
+        (directory / f"{stamp}.meta.json").write_text(
+            json.dumps(
+                {
+                    "fetched_at": (now - timedelta(days=age_days)).isoformat(),
+                    "content_type": meta["content_type"],
+                }
+            )
+        )
+
+    found = store.earliest_within(sleeper_players, None, timedelta(days=4))
+    assert found is not None
+    dataset, fetched_at = found
+    assert len(dataset.rows) > 0
+    # The 99-day-old copy is outside the window and must not be the answer.
+    assert (now - fetched_at) < timedelta(days=4)
+
+
+def test_history_skips_snapshots_it_cannot_read(tmp_path, fixture_fetcher):
+    """A half-written or orphaned snapshot costs the comparison, not the read."""
+    store = SnapshotStore(tmp_path, fixture_fetcher)
+    store.get(sleeper_players)
+    directory = next((tmp_path / "sleeper_players").iterdir())
+    now = datetime.now(UTC)
+
+    # Truncated body: it loads but cannot be parsed.
+    (directory / "20260102T000000.snap").write_bytes(b"{not json at all")
+    (directory / "20260102T000000.meta.json").write_text(
+        json.dumps(
+            {
+                "fetched_at": (now - timedelta(hours=6)).isoformat(),
+                "content_type": "application/json",
+            }
+        )
+    )
+    # Orphaned payload: a crash between the two writes leaves no metadata.
+    (directory / "20260101T000000.snap").write_bytes(b"{}")
+
+    assert store.earliest_within(sleeper_players, None, timedelta(days=4)) is None

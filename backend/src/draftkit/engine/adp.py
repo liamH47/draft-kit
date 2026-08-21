@@ -1,6 +1,36 @@
 """ADP blending across sources."""
 
 
+def sentinel_cutoff(values: list[float], *, min_pile: int = 20, band: float = 1.0) -> float | None:
+    """Where a source stops pricing players and starts bucketing them.
+
+    A market only has a draft position for players who actually get drafted.
+    Past that, sources differ: some stop, and some assign every remaining
+    player the same trailing number. ESPN dumps a hundred players within one
+    pick of its maximum; a genuine market has one or two players there.
+
+    Returns the value at or above which a number is a bucket rather than a
+    price, or None when the tail looks like real prices.
+    """
+    if len(values) < min_pile:
+        return None
+    ordered = sorted(values)
+    upper = ordered[-1]
+    edge: float | None = None
+    # Walk one-pick bins down from the top. A bin holding a crowd is a bucket
+    # rather than a price, and the crowd keeps going until real prices resume,
+    # so follow it down and cut below the whole run. ESPN's bucket is not one
+    # repeated number but a jittered band 335 players wide.
+    while upper > 0:
+        lower = upper - band
+        crowd = sum(1 for v in ordered if lower <= v <= upper)
+        if crowd < min_pile:
+            break
+        edge = lower
+        upper = lower
+    return edge
+
+
 def blend_adp(adp_by_source: dict[str, float], weights: dict[str, float]) -> float | None:
     """Weighted mean over the sources present; None if none are."""
     present = {s: v for s, v in adp_by_source.items() if v is not None}

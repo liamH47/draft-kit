@@ -34,6 +34,35 @@ function ConsensusCell({ player }: { player: PoolPlayer }) {
   )
 }
 
+/** Two things worth spotting without reading a number: a player the room
+ *  lets fall well past what he is worth, and one whose price is moving. */
+function Flags({ player }: { player: PoolPlayer }) {
+  const edge = player.market_edge ?? 0
+  const shift = player.adp_shift ?? 0
+  const sleeper = edge >= 20 && (player.adp ?? 0) >= 70
+  const rising = shift <= -3
+  const falling = shift >= 3
+  return (
+    <>
+      {sleeper && (
+        <span className="flag sleeper" title={`The room takes him ~${edge} picks later than we rate him`}>
+          value
+        </span>
+      )}
+      {rising && (
+        <span className="flag rising" title={`His price has moved up ${Math.abs(shift).toFixed(1)} picks lately`}>
+          ▲
+        </span>
+      )}
+      {falling && (
+        <span className="flag falling" title={`His price has slipped ${shift.toFixed(1)} picks lately`}>
+          ▼
+        </span>
+      )}
+    </>
+  )
+}
+
 export function PlayerRow({ player, onDraft, onTag }: Props) {
   const adp = adpLabel(player)
   return (
@@ -44,6 +73,7 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
       </td>
       <td className="name-cell">
         {player.name}
+        <Flags player={player} />
         {player.note && <span className="note" title={player.note}> ✎</span>}
       </td>
       <td>
@@ -52,8 +82,13 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
       </td>
       <td>{player.team ?? '—'}</td>
       <td className="num">{player.bye ?? '—'}</td>
-      <td className="num">{player.points.toFixed(1)}</td>
       <td className="num strong">{player.vorp.toFixed(1)}</td>
+      <td
+        className={`num ${(player.vona ?? 0) >= 12 ? 'vona-hot' : ''}`}
+        title="What waiting costs: points between him and the next player at his position likely to reach your next pick"
+      >
+        {player.vona === null || player.vona === undefined ? '—' : player.vona.toFixed(0)}
+      </td>
       <td className="num">{player.adp?.toFixed(1) ?? '—'}</td>
       <td className={`num badge ${adp.kind}`} title="Picks he has lasted past ADP">
         {adp.text}
