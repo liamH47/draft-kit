@@ -20,6 +20,23 @@ Early scaffold (M0). See `docs/` (coming) and the milestone list below.
 - **M5** — hosted mode for friends
 - **M6+** — Yahoo OAuth sync, ESPN browser extension
 
+## Running it
+
+On Windows, double-click **`start-draftkit.cmd`**. It builds the interface, starts the
+app on <http://localhost:8000> and opens it. Leave that window open while you use it;
+closing it stops the server.
+
+On draft morning use **`start-draftkit-draftday.cmd`** instead. It refreshes every
+source first and then pins the app to what is on disk, so no board refresh can sit
+waiting on a slow feed while you are on the clock.
+
+Everything you enter — leagues, picks, and the players you tag — is stored on your own
+machine in `backend/data`, and stays there between runs. None of it lives in the
+browser, so clearing cookies or site data loses nothing. Tags are additionally mirrored
+to `backend/data/tags.json`, which you can read, edit, or copy to another machine; the
+cheat sheet has save and load buttons for the same file, and `POST /api/tags/restore`
+rebuilds the tags from it if the database is ever lost.
+
 ## Dev
 
 Backend needs [uv](https://docs.astral.sh/uv/); frontend needs Node 22+.
