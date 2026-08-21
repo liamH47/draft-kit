@@ -23,7 +23,7 @@ class LeagueCreate(BaseModel):
     scoring: ScoringPreset = "half_ppr"
     scoring_overrides: dict[str, float] = {}
     roster: RosterSlots = RosterSlots()
-    adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5, "espn": 0.5}
+    adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5, "espn": 0.5, "yahoo": 0.5}
     autodraft_count: int = Field(default=0, ge=0)
 
     def to_config(self) -> LeagueConfig:

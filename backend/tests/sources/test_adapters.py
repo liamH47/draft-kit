@@ -1,11 +1,16 @@
+import json
+
 import pytest
 
 from draftkit.sources import (
     borischen_tiers,
+    cbs_rankings,
     dp_playerids,
+    espn_projections,
     ffcalc_adp,
     sleeper_players,
     sleeper_projections,
+    yahoo_adp,
 )
 from draftkit.sources.base import RawPayload, SourceError
 from tests.conftest import load_fixture
@@ -56,6 +61,61 @@ def test_ffcalc_rejects_error_payload():
         ffcalc_adp.validate(RawPayload(b'{"status": "Error"}', "application/json"))
 
 
+def test_espn_projections_parse():
+    raw = load_fixture("leaguedefaults")
+    espn_projections.validate(raw)
+    ds = espn_projections.parse(raw)
+    by_name = {r["name"]: r for r in ds.rows}
+    gibbs = by_name["Jahmyr Gibbs"]
+    # Raw categories mapped to Sleeper stat names, so the engine can rescore
+    # under the user's own league rules.
+    assert gibbs["stats"]["rush_yd"] > 500
+    assert gibbs["stats"]["rec"] > 10
+    assert gibbs["applied_total"] > 100
+    # DEF has no mapped categories: applied_total is the fallback.
+    defense = next(r for r in ds.rows if r["position"] == "DEF")
+    assert defense["stats"] == {} and defense["applied_total"] > 0
+    # A player with only weekly stats entries has no season projection.
+    assert all(r["name"] != "Long Snapper" for r in ds.rows)
+
+
+def test_espn_projections_rejects_the_filterless_shape():
+    # Without a parseable X-Fantasy-Filter, ESPN returns a bare list.
+    with pytest.raises(SourceError, match="filter ignored"):
+        espn_projections.validate(RawPayload(b'[{"id": 1}]', "application/json"))
+
+
+def test_cbs_parse():
+    raw = load_fixture("cbssports")
+    cbs_rankings.validate(raw)
+    ds = cbs_rankings.parse(raw)
+    assert ds.rows[0]["rank"] == 1.0
+    assert all(r["cbs_id"] for r in ds.rows)  # the id-less row was skipped
+    assert all(r["position"] in {"QB", "RB", "WR", "TE", "K", "DEF"} for r in ds.rows)
+
+
+def test_cbs_rejects_an_empty_rankings_body():
+    with pytest.raises(SourceError, match="no players"):
+        cbs_rankings.validate(RawPayload(b'{"body": {"rankings": {}}}', "application/json"))
+
+
+def test_yahoo_parse():
+    raw = load_fixture("pub-api-ro")
+    yahoo_adp.validate(raw)
+    ds = yahoo_adp.parse(raw)
+    with_adp = [r for r in ds.rows if r["adp"] is not None]
+    assert len(with_adp) >= 3
+    top = min(with_adp, key=lambda r: r["adp"])
+    assert top["yahoo_id"] and top["position"] and top["average_cost"] is not None
+    # Yahoo's "-" sentinel for the deep tail becomes None, not a crash.
+    assert any(r["adp"] is None for r in ds.rows)
+
+
+def test_yahoo_rejects_a_payload_without_fantasy_content():
+    with pytest.raises(SourceError, match="fantasy_content"):
+        yahoo_adp.validate(RawPayload(b'{"error": "nope"}', "application/json"))
+
+
 def test_borischen_parse():
     raw = load_fixture("fftiers")
     borischen_tiers.validate(raw)
@@ -74,6 +134,9 @@ def test_dp_parse():
     by_merge = {r["merge_name"]: r for r in ds.rows}
     assert by_merge["christian mccaffrey"]["sleeper_id"] == "4034"
     assert by_merge["christian mccaffrey"]["espn_id"]
+    # every platform join key the pool uses must survive the crosswalk
+    assert by_merge["christian mccaffrey"]["cbs_id"]
+    assert by_merge["christian mccaffrey"]["yahoo_id"]
     assert by_merge["brandon aubrey"]["position"] == "K"  # PK normalized
 
 
@@ -104,3 +167,35 @@ def test_borischen_tolerates_missing_or_unparseable_columns():
     assert rows[0]["expert_stdev"] is None
     assert rows[1]["expert_rank"] is None  # unparseable, not a crash
     assert rows[1]["expert_stdev"] == 0.5
+
+
+def test_yahoo_skips_rows_without_an_id_or_a_name():
+    """Yahoo pads its pages with fragments that are not players."""
+    payload = {
+        "fantasy_content": {
+            "game": [
+                {"game_key": "470"},
+                {
+                    "players": {
+                        "0": {
+                            "player": [[{"player_id": "1"}, {"name": {"full": "Real Player"}}], []]
+                        },
+                        "1": {"player": [[{"name": {"full": "No Id"}}], []]},
+                        "2": {"player": [[{"player_id": "3"}], []]},
+                        "3": "not a mapping at all",
+                        "count": 4,
+                    }
+                },
+            ]
+        }
+    }
+    ds = yahoo_adp.parse(RawPayload(json.dumps(payload).encode(), "application/json"))
+    assert [r["name"] for r in ds.rows] == ["Real Player"]
+
+
+def test_yahoo_tolerates_a_page_with_no_player_block():
+    """Yahoo wraps players in a positional list; an error or empty page has
+    the wrapper but no block, which must parse to nothing rather than raise."""
+    payload = {"fantasy_content": {"game": [{"game_key": "470"}]}}
+    ds = yahoo_adp.parse(RawPayload(json.dumps(payload).encode(), "application/json"))
+    assert ds.rows == []

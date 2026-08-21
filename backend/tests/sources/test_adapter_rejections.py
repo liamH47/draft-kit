@@ -11,10 +11,13 @@ import pytest
 
 from draftkit.sources import (
     borischen_tiers,
+    cbs_rankings,
     dp_playerids,
+    espn_projections,
     ffcalc_adp,
     sleeper_players,
     sleeper_projections,
+    yahoo_adp,
 )
 from draftkit.sources.base import RawPayload, SourceError
 
@@ -26,7 +29,9 @@ def json_body(payload) -> RawPayload:
 # --- wrong content type -----------------------------------------------------
 
 
-@pytest.mark.parametrize("adapter", [sleeper_players, sleeper_projections])
+@pytest.mark.parametrize(
+    "adapter", [sleeper_players, sleeper_projections, espn_projections, cbs_rankings, yahoo_adp]
+)
 def test_non_json_content_type_is_rejected(adapter):
     with pytest.raises(SourceError, match="expected JSON"):
         adapter.validate(RawPayload(body=b"{}", content_type="text/html"))
@@ -114,3 +119,27 @@ def test_projection_rows_without_stats_or_an_id_are_skipped():
     ids = {row["sleeper_id"] for row in ds.rows}
     assert "no_stats" not in ids
     assert len(ids) == 10
+
+
+# --- the sources added for 2026: every one is an undocumented host ----------
+
+
+@pytest.mark.parametrize("adapter", [espn_projections, cbs_rankings, yahoo_adp])
+def test_new_sources_reject_a_truncated_body(adapter):
+    with pytest.raises(SourceError):
+        adapter.validate(RawPayload(body=b'{"a": ', content_type="application/json"))
+
+
+def test_espn_projections_rejects_an_empty_player_list():
+    with pytest.raises(SourceError, match="filter ignored"):
+        espn_projections.validate(json_body({"players": []}))
+
+
+def test_cbs_rejects_a_body_that_is_not_a_mapping():
+    with pytest.raises(SourceError, match="no players"):
+        cbs_rankings.validate(json_body([1, 2, 3]))
+
+
+def test_yahoo_rejects_a_bare_list():
+    with pytest.raises(SourceError, match="fantasy_content"):
+        yahoo_adp.validate(json_body([]))

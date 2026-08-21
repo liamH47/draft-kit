@@ -125,8 +125,10 @@ def as_markdown() -> str:
         "- **FantasyPros** — their terms do not permit a published aggregator.",
         "  Boris Chen's tiers are expert-derived and openly published, so that is",
         "  the expert signal we use instead.",
-        "- **Yahoo** — the official API needs OAuth with human-gated approval.",
-        "  Worth applying for early; not reachable without it.",
-        "- **Underdog** — no public API, and their terms forbid the internal one.",
+        "- **NFL.com** — api.fantasy.nfl.com is dead (404 on every historical",
+        "  path, verified 2026-08-20).",
+        "- **Underdog** — their stats host serves best-ball ADP openly, but",
+        "  best-ball prices skew snake-draft advice (late-QB, upside-weighted)",
+        "  and the crosswalk has no Underdog id. Deferred, not rejected.",
     ]
     return "\n".join(lines) + "\n"

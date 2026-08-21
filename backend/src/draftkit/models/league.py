@@ -74,7 +74,7 @@ class LeagueConfig(BaseModel):
     # are skipped. Every source the pool can produce is listed explicitly —
     # blend_adp gives UNLISTED sources weight 1.0, which would silently
     # double-weight a new source against these halves.
-    adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5, "espn": 0.5}
+    adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5, "espn": 0.5, "yahoo": 0.5}
 
     # Positions that should not be drafted until the end of the draft. A
     # kicker taken in round 6 costs you a real starter, and the spread between

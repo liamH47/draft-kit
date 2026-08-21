@@ -17,7 +17,7 @@ AUTH = "none"
 ATTRIBUTION = "Player ID crosswalk from DynastyProcess."
 NATIVE_ID = "sleeper_id"
 KIND = "crosswalk"
-PROVIDES = ["espn_id", "yahoo_id", "merge_name"]
+PROVIDES = ["espn_id", "yahoo_id", "cbs_id", "merge_name"]
 name = "dp_playerids"
 ttl = timedelta(days=7)
 
@@ -49,6 +49,7 @@ def parse(raw: RawPayload) -> SourceDataset:
                 "position": position,
                 "espn_id": None if r.get("espn_id") in (None, "NA", "") else r["espn_id"],
                 "yahoo_id": None if r.get("yahoo_id") in (None, "NA", "") else r["yahoo_id"],
+                "cbs_id": None if r.get("cbs_id") in (None, "NA", "") else r["cbs_id"],
                 "merge_name": r.get("merge_name", ""),
                 "name": r.get("name", ""),
                 "team": r.get("team") or None,

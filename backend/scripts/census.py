@@ -62,6 +62,9 @@ def main() -> int:
         ("ffcalc", {"format": "half_ppr", "teams": 12, "year": season}),
         ("borischen", {"format": "half_ppr"}),
         ("espn_market", {"season": season}),
+        ("espn_projections", {"season": season}),
+        ("cbs_rankings", {"format": "ppr"}),
+        ("yahoo_adp", {"start": 0}),
     ]
 
     reports, problems = [], 0

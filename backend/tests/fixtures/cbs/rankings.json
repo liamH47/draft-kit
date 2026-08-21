@@ -1,0 +1,107 @@
+{
+ "body": {
+  "rankings": {
+   "source": "cbs_avg_ppr",
+   "players": [
+    {
+     "firstname": "Jahmyr",
+     "lastname": "Gibbs",
+     "rank": 1,
+     "bye_week": "6",
+     "position": "RB",
+     "fullname": "Jahmyr Gibbs",
+     "age": 24,
+     "id": "3162723",
+     "eligible_positions_display": "RB",
+     "pro_team": "DET",
+     "eligible_for_offense_and_defense": 0,
+     "opponent": "Bye: 6",
+     "elias_id": "GIB198578",
+     "photo": "http://sports.cbsimg.net/images/football/nfl/players/170x170/3162723.png",
+     "jersey": "0",
+     "pro_status": "A"
+    },
+    {
+     "firstname": "Bijan",
+     "lastname": "Robinson",
+     "rank": 2,
+     "bye_week": "11",
+     "position": "RB",
+     "fullname": "Bijan Robinson",
+     "age": 24,
+     "id": "3168163",
+     "eligible_positions_display": "RB",
+     "pro_team": "ATL",
+     "eligible_for_offense_and_defense": 0,
+     "opponent": "Bye: 11",
+     "elias_id": "ROB368260",
+     "photo": "http://sports.cbsimg.net/images/football/nfl/players/170x170/3168163.png",
+     "jersey": "7",
+     "pro_status": "A"
+    },
+    {
+     "firstname": "Ja'Marr",
+     "lastname": "Chase",
+     "rank": 3,
+     "bye_week": "6",
+     "position": "WR",
+     "fullname": "Ja'Marr Chase",
+     "age": 26,
+     "id": "2966320",
+     "eligible_positions_display": "WR",
+     "pro_team": "CIN",
+     "eligible_for_offense_and_defense": 0,
+     "opponent": "Bye: 6",
+     "elias_id": "CHA694469",
+     "photo": "http://sports.cbsimg.net/images/football/nfl/players/170x170/2966320.png",
+     "jersey": "1",
+     "pro_status": "A"
+    },
+    {
+     "firstname": "Puka",
+     "lastname": "Nacua",
+     "rank": 4,
+     "bye_week": "11",
+     "position": "WR",
+     "fullname": "Puka Nacua",
+     "age": 25,
+     "id": "3121687",
+     "eligible_positions_display": "WR",
+     "pro_team": "LAR",
+     "eligible_for_offense_and_defense": 0,
+     "opponent": "Bye: 11",
+     "elias_id": "NAC559347",
+     "photo": "http://sports.cbsimg.net/images/football/nfl/players/170x170/3121687.png",
+     "jersey": "12",
+     "pro_status": "A",
+     "icons": {
+      "injury": "Groin: Questionable for Week 1 vs. San Francisco",
+      "headline": "Rams' Puka Nacua: Still sidelined at practice"
+     }
+    },
+    {
+     "firstname": "Jaxon",
+     "lastname": "Smith-Njigba",
+     "rank": 5,
+     "bye_week": "11",
+     "position": "WR",
+     "fullname": "Jaxon Smith-Njigba",
+     "age": 24,
+     "id": "3162959",
+     "eligible_positions_display": "WR",
+     "pro_team": "SEA",
+     "eligible_for_offense_and_defense": 0,
+     "opponent": "Bye: 11",
+     "elias_id": "SMI829636",
+     "photo": "http://sports.cbsimg.net/images/football/nfl/players/170x170/3162959.png",
+     "jersey": "11",
+     "pro_status": "A"
+    },
+    {
+     "fullname": "No Id Guy",
+     "rank": "999"
+    }
+   ]
+  }
+ }
+}

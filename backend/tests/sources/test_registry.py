@@ -86,6 +86,9 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
         "borischen": {"format": "half_ppr"},
         "espn_market": {"season": 2026},
         "espn_league": {"season": 2026, "league_id": "1234567"},
+        "espn_projections": {"season": 2026},
+        "cbs_rankings": {"format": "ppr"},
+        "yahoo_adp": {"start": 0},
     }
     for info in registry.all_sources():
         dataset, _ = store.get(info.module, params[info.name])

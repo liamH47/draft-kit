@@ -13,9 +13,9 @@ def blend_adp(adp_by_source: dict[str, float], weights: dict[str, float]) -> flo
 
 
 # How much each ranking list counts toward the consensus a player is shown
-# against. ESPN's list is the order half a room actually drafts off; Boris
-# Chen's expert rank is deliberately held at half weight.
-CONSENSUS_WEIGHTS = {"espn": 1.0, "expert": 0.5}
+# against. Platform lists (the orders rooms actually draft off) carry full
+# weight; Boris Chen's expert rank is deliberately held at half weight.
+CONSENSUS_WEIGHTS = {"espn": 1.0, "cbs": 1.0, "expert": 0.5}
 
 
 def consensus_rank(

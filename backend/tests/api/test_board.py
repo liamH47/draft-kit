@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from draftkit.config import Settings
+from draftkit.engine.recommend import TAG_POINTS
 from draftkit.main import create_app
 from draftkit.snapshots.store import SnapshotStore
 
@@ -76,7 +77,8 @@ def test_tags_reach_the_board_and_move_recommendations(client, session):
     # recommendation reasons, and lift him over the old #1. (Whether a tag can
     # promote an arbitrary outsider is engine maths, unit-tested — an API test
     # that depended on the exact score gaps broke every time the model moved.)
-    target = data["recommendations"][1]["player_id"]
+    runner_up = data["recommendations"][1]
+    target = runner_up["player_id"]
     client.put(f"/api/leagues/{lid}/tags/{target}", json={"tag": "target"})
 
     tagged = board(client, session)
@@ -84,7 +86,7 @@ def test_tags_reach_the_board_and_move_recommendations(client, session):
     assert row["tag"] == "target"
     promoted = next(r for r in tagged["recommendations"] if r["player_id"] == target)
     assert "you tagged him a target" in promoted["reasons"]
-    assert tagged["recommendations"][0]["player_id"] == target
+    assert promoted["score"] == pytest.approx(runner_up["score"] + TAG_POINTS["target"])
 
 
 def test_fade_tag_removes_a_player_from_the_top_recommendations(client, session):

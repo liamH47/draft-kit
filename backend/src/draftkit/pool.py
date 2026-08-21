@@ -21,11 +21,14 @@ from draftkit.models.player import PoolPlayer
 from draftkit.snapshots.store import SnapshotMeta, SnapshotStore
 from draftkit.sources import (
     borischen_tiers,
+    cbs_rankings,
     dp_playerids,
     espn_market,
+    espn_projections,
     ffcalc_adp,
     sleeper_players,
     sleeper_projections,
+    yahoo_adp,
 )
 
 _PRESET_TO_SLEEPER_ADP = {
@@ -33,6 +36,9 @@ _PRESET_TO_SLEEPER_ADP = {
     "half_ppr": "adp_half_ppr",
     "ppr": "adp_ppr",
 }
+
+# Yahoo ADP fades out around the top ~275; never walk past this.
+_YAHOO_MAX_START = 400
 
 
 @dataclass
@@ -155,19 +161,93 @@ def build_pool(
     except Exception:
         pass
 
+    # The second projection source. One projection source cannot cross-check
+    # itself; averaged points damp any single feed's optimism.
+    espn_proj_by_id: dict[str, dict[str, Any]] = {}
+    try:
+        eproj_ds, sources["espn_projections"] = store.get(espn_projections, {"season": season})
+        for row in eproj_ds.rows:
+            sleeper_id = espn_to_sleeper.get(row["espn_id"])
+            if sleeper_id is None and row.get("name"):
+                sleeper_id = resolver.resolve(row["name"], row["position"]).sleeper_id
+            if sleeper_id:
+                espn_proj_by_id[sleeper_id] = row
+    except Exception:
+        pass
+
+    cbs_to_sleeper = {
+        row["cbs_id"]: row["sleeper_id"] for row in crosswalk_rows if row.get("cbs_id")
+    }
+    cbs_by_id: dict[str, dict[str, Any]] = {}
+    try:
+        cbs_ds, sources["cbs_rankings"] = store.get(cbs_rankings, {"format": scoring_preset})
+        for row in cbs_ds.rows:
+            sleeper_id = cbs_to_sleeper.get(row["cbs_id"])
+            if sleeper_id is None and row.get("name"):
+                sleeper_id = resolver.resolve(
+                    row["name"], row["position"], row.get("team")
+                ).sleeper_id
+            if sleeper_id:
+                cbs_by_id[sleeper_id] = row
+    except Exception:
+        pass
+
+    # Yahoo pages are capped at 25 and ADP decays to nothing past the top
+    # ~275; walk pages until one carries no ADP at all. A page that fails
+    # mid-walk costs the tail, not the source.
+    yahoo_to_sleeper = {
+        row["yahoo_id"]: row["sleeper_id"] for row in crosswalk_rows if row.get("yahoo_id")
+    }
+    yahoo_by_id: dict[str, dict[str, Any]] = {}
+    for start in range(0, _YAHOO_MAX_START, yahoo_adp.PAGE_SIZE):
+        try:
+            page_ds, sources["yahoo_adp"] = store.get(yahoo_adp, {"start": start})
+        except Exception:
+            break
+        page_had_adp = False
+        for row in page_ds.rows:
+            if row.get("adp") is not None:
+                page_had_adp = True
+            sleeper_id = yahoo_to_sleeper.get(row["yahoo_id"])
+            if sleeper_id is None and row.get("name"):
+                sleeper_id = resolver.resolve(
+                    row["name"], row["position"], row.get("team")
+                ).sleeper_id
+            if sleeper_id:
+                yahoo_by_id.setdefault(sleeper_id, row)
+        if not page_had_adp:
+            break
+
     adp_field = _PRESET_TO_SLEEPER_ADP.get(scoring_preset, "adp_half_ppr")
     pool: list[PoolPlayer] = []
     for proj in proj_ds.rows:
         player = players_by_id.get(proj["sleeper_id"])
         if player is None:
             continue
-        points = score(proj["stats"], league.scoring)
-        if points < min_points:
-            continue
         player_id = proj["sleeper_id"]
         ffc = ffc_by_id.get(player_id)
         espn = espn_by_id.get(player_id)
         expert = expert_by_id.get(player_id)
+        eproj = espn_proj_by_id.get(player_id)
+        cbs = cbs_by_id.get(player_id)
+        yahoo = yahoo_by_id.get(player_id)
+
+        extra: dict[str, float | str | None] = {}
+        points = score(proj["stats"], league.scoring)
+        if eproj is not None:
+            # Rescore ESPN's raw stat line under this league's rules; DEF has
+            # no mapped categories, so ESPN's own scored total stands in.
+            espn_points = (
+                score(eproj["stats"], league.scoring)
+                if eproj["stats"]
+                else float(eproj.get("applied_total") or 0.0)
+            )
+            if espn_points > 0:
+                extra["points.sleeper"] = points
+                extra["points.espn"] = espn_points
+                points = round((points + espn_points) / 2, 2)
+        if points < min_points:
+            continue
 
         adp_by_source = {}
         if proj["adp"].get(adp_field):
@@ -176,15 +256,18 @@ def build_pool(
             adp_by_source["ffcalc"] = float(ffc["adp"])
         if espn and espn.get("adp"):
             adp_by_source["espn"] = float(espn["adp"])
+        if yahoo and yahoo.get("adp"):
+            adp_by_source["yahoo"] = float(yahoo["adp"])
 
         # Ranking lists, kept apart from market prices.
         rank_by_source: dict[str, float] = {}
         if espn and espn.get("list_rank"):
             rank_by_source["espn"] = float(espn["list_rank"])
+        if cbs and cbs.get("rank"):
+            rank_by_source["cbs"] = float(cbs["rank"])
         if expert and expert.get("expert_rank"):
             rank_by_source["expert"] = float(expert["expert_rank"])
 
-        extra: dict[str, float | str | None] = {}
         if expert:
             extra["expert.stdev"] = expert.get("expert_stdev")
             extra["expert.best"] = expert.get("expert_best")
@@ -192,14 +275,24 @@ def build_pool(
         if espn:
             extra["espn.percent_owned"] = espn.get("percent_owned")
             extra["espn.auction_value"] = espn.get("auction_value")
+        if yahoo:
+            extra["yahoo.average_cost"] = yahoo.get("average_cost")
+            extra["yahoo.percent_drafted"] = yahoo.get("percent_drafted")
         blended = blend_adp(adp_by_source, league.adp_weights)
+        # Byes chain across sources: FFC covers most, Yahoo and CBS fill the
+        # defenses and deep names FFC does not list.
+        bye = None
+        for src in (ffc, yahoo, cbs):
+            if src and src.get("bye"):
+                bye = src["bye"]
+                break
         pool.append(
             PoolPlayer(
                 player_id=player_id,
                 name=player["name"],
                 position=player["position"],
                 team=player.get("team"),
-                bye=ffc.get("bye") if ffc else None,
+                bye=bye,
                 points=points,
                 adp=blended,
                 adp_by_source=adp_by_source,

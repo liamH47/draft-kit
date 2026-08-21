@@ -10,11 +10,14 @@ from draftkit.db.connection import connect
 from draftkit.snapshots.store import SnapshotStore
 from draftkit.sources import (
     borischen_tiers,
+    cbs_rankings,
     dp_playerids,
     espn_market,
+    espn_projections,
     ffcalc_adp,
     sleeper_players,
     sleeper_projections,
+    yahoo_adp,
 )
 
 
@@ -42,7 +45,14 @@ def main() -> int:
         (sleeper_projections, {"season": season}),
         (dp_playerids, {}),
         (espn_market, {"season": season}),
+        (espn_projections, {"season": season}),
+        (cbs_rankings, {"format": "ppr"}),
+        (cbs_rankings, {"format": "standard"}),
     ]
+    # Yahoo pages are 25 wide and ADP fades around the top ~275; warm the
+    # full walk so an offline draft can read every page the pool will ask for.
+    for start in range(0, 400, yahoo_adp.PAGE_SIZE):
+        jobs.append((yahoo_adp, {"start": start}))
     for preset in ("standard", "half_ppr", "ppr"):
         for teams in sorted(league_team_counts()):
             jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
