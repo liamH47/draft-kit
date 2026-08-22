@@ -20,6 +20,8 @@ export type PoolPlayer = {
   // How his price has moved since the oldest snapshot we hold. Negative means
   // the room is taking him earlier than it was.
   adp_shift: number | null
+  // How many markets could see both readings. One market moving is noise.
+  adp_shift_sources: number | null
   // What waiting costs: how much better he is than the next player at his
   // position likely to survive to your next pick. Only set during a draft.
   vona?: number | null

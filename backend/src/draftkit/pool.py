@@ -153,22 +153,32 @@ def build_pool(
     except Exception:
         pass
 
-    # What the same market said a few days ago, so a player whose price is
-    # moving can be flagged. An injury ahead of somebody shows up here first.
-    ffc_adp_before: dict[str, float] = {}
-    try:
-        earlier = store.earliest_within(
-            ffcalc_adp,
-            {"format": scoring_preset, "teams": league.num_teams, "year": season},
-            _MOVEMENT_WINDOW,
-        )
-        if earlier is not None:
+    # What each market said a few days ago, so a player whose price is moving
+    # can be flagged. An injury ahead of somebody shows up here first. Every
+    # market is compared only against its OWN past — never across markets,
+    # where a blend whose members change would read as movement that never
+    # happened.
+    adp_before: dict[str, dict[str, float]] = {}
+
+    def _previous(adapter: Any, params: dict[str, Any], to_sleeper_id) -> dict[str, float]:
+        try:
+            earlier = store.earliest_within(adapter, params, _MOVEMENT_WINDOW)
+            if earlier is None:
+                return {}
+            was: dict[str, float] = {}
             for row in earlier[0].rows:
-                res = resolver.resolve(row["name"], row["position"], row.get("team"))
-                if res.sleeper_id and row.get("adp"):
-                    ffc_adp_before[res.sleeper_id] = float(row["adp"])
-    except Exception:
-        pass
+                sleeper_id = to_sleeper_id(row)
+                if sleeper_id and row.get("adp"):
+                    was.setdefault(sleeper_id, float(row["adp"]))
+            return was
+        except Exception:
+            return {}
+
+    adp_before["ffcalc"] = _previous(
+        ffcalc_adp,
+        {"format": scoring_preset, "teams": league.num_teams, "year": season},
+        lambda row: resolver.resolve(row["name"], row["position"], row.get("team")).sleeper_id,
+    )
 
     tiers_by_id: dict[str, int] = {}
     expert_by_id: dict[str, dict[str, Any]] = {}
@@ -210,6 +220,19 @@ def build_pool(
                 espn_proj_by_id[sleeper_id] = row
     except Exception:
         pass
+
+    adp_before["espn"] = _previous(
+        espn_market,
+        {"season": season},
+        lambda row: (
+            espn_to_sleeper.get(row["espn_id"])
+            or (
+                resolver.resolve(row["name"], row["position"]).sleeper_id
+                if row.get("name")
+                else None
+            )
+        ),
+    )
 
     cbs_to_sleeper = {
         row["cbs_id"]: row["sleeper_id"] for row in crosswalk_rows if row.get("cbs_id")
@@ -256,6 +279,20 @@ def build_pool(
                 yahoo_by_id.setdefault(sleeper_id, row)
         if not page_had_adp:
             break
+
+    adp_before["yahoo"] = {}
+    for start in range(0, _YAHOO_MAX_START, yahoo_adp.PAGE_SIZE):
+        page = _previous(
+            yahoo_adp,
+            {"start": start},
+            lambda row: (
+                yahoo_to_sleeper.get(row["yahoo_id"])
+                or resolver.resolve(row["name"], row["position"], row.get("team")).sleeper_id
+            ),
+        )
+        if not page:
+            break
+        adp_before["yahoo"].update(page)
 
     adp_field = _PRESET_TO_SLEEPER_ADP.get(scoring_preset, "adp_half_ppr")
 
@@ -330,15 +367,16 @@ def build_pool(
             extra["yahoo.average_cost"] = yahoo.get("average_cost")
             extra["yahoo.percent_drafted"] = yahoo.get("percent_drafted")
         blended = blend_adp(adp_by_source, league.adp_weights)
-        # Movement is measured on one market against its own past, never
-        # across markets — a blend whose members change costs nothing to
-        # compare and would read as movement that never happened.
-        was = ffc_adp_before.get(player_id)
-        adp_shift = (
-            round(float(ffc["adp"]) - was, 1)
-            if was is not None and ffc and ffc.get("adp")
-            else None
-        )
+        # Movement, averaged over the markets that can see both readings. One
+        # market moving is noise; the same player sliding in several is news,
+        # so the count of agreeing markets travels with the number.
+        shifts = [
+            price - adp_before[source][player_id]
+            for source, price in adp_by_source.items()
+            if player_id in adp_before.get(source, {})
+        ]
+        adp_shift = round(sum(shifts) / len(shifts), 1) if shifts else None
+        adp_shift_sources = len(shifts) or None
         # Byes chain across sources: FFC covers most, Yahoo and CBS fill the
         # defenses and deep names FFC does not list.
         bye = None
@@ -361,6 +399,7 @@ def build_pool(
                 list_vs_market=list_vs_market(rank_by_source, blended),
                 consensus_rank=consensus_rank(rank_by_source),
                 adp_shift=adp_shift,
+                adp_shift_sources=adp_shift_sources,
                 extra={k: v for k, v in extra.items() if v is not None},
                 tier_expert=tiers_by_id.get(player_id),
                 rank=0,

@@ -41,6 +41,9 @@ class PoolPlayer(BaseModel):
     # Negative means his ADP got smaller — the room is taking him earlier than
     # it was, which is what an injury to the man ahead of him looks like.
     adp_shift: float | None = None
+    # How many markets could see both readings. One market moving is noise;
+    # several moving together is news.
+    adp_shift_sources: int | None = None
     # Places between where the market drafts him and where we rate him.
     # Positive means he lasts past his worth: the shape of a sleeper.
     market_edge: int | None = None

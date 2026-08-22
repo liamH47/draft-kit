@@ -39,9 +39,14 @@ function ConsensusCell({ player }: { player: PoolPlayer }) {
 function Flags({ player }: { player: PoolPlayer }) {
   const edge = player.market_edge ?? 0
   const shift = player.adp_shift ?? 0
+  const markets = player.adp_shift_sources ?? 0
   const sleeper = edge >= 20 && (player.adp ?? 0) >= 70
-  const rising = shift <= -3
-  const falling = shift >= 3
+  // One market moving a player is noise. Two or more agreeing is news, so a
+  // lone market has to move him further before it is worth your attention.
+  const enough = markets >= 2 ? 1.5 : 5
+  const rising = shift <= -enough
+  const falling = shift >= enough
+  const across = `across ${markets} market${markets === 1 ? '' : 's'}`
   return (
     <>
       {sleeper && (
@@ -50,12 +55,18 @@ function Flags({ player }: { player: PoolPlayer }) {
         </span>
       )}
       {rising && (
-        <span className="flag rising" title={`His price has moved up ${Math.abs(shift).toFixed(1)} picks lately`}>
+        <span
+          className="flag rising"
+          title={`Being taken ${Math.abs(shift).toFixed(1)} picks earlier than a few days ago, ${across}`}
+        >
           ▲
         </span>
       )}
       {falling && (
-        <span className="flag falling" title={`His price has slipped ${shift.toFixed(1)} picks lately`}>
+        <span
+          className="flag falling"
+          title={`Slipping ${shift.toFixed(1)} picks down boards since a few days ago, ${across}`}
+        >
           ▼
         </span>
       )}

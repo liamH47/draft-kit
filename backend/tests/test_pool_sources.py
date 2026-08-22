@@ -7,6 +7,7 @@ columns and nothing else.
 """
 
 import json
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -203,7 +204,9 @@ def test_market_movement_is_reported_once_there_is_history(tmp_path, fixture_fet
     )
 
     moved = {p.name: p for p in build_pool(store, league_cfg, season=2026).players}
-    assert moved["Christian McCaffrey"].adp_shift == pytest.approx(-3.0)
+    cmc = moved["Christian McCaffrey"]
+    assert cmc.adp_shift == pytest.approx(-3.0)
+    assert cmc.adp_shift_sources == 1  # real, but uncorroborated
     # Everyone else held still.
     assert moved["Jahmyr Gibbs"].adp_shift == pytest.approx(0.0)
 
@@ -320,3 +323,77 @@ def test_a_player_no_market_prices_has_no_edge_over_the_market(tmp_path, fixture
     assert cmc.adp is None
     assert cmc.market_edge is None
     assert cmc.rank >= 1  # still ranked on his own merits
+
+
+def _backdate(tmp_path, source_dir, mutate, hours=8):
+    """Write an older snapshot of a source, with its prices altered, so the
+    pool has something to compare today's reading against."""
+    import json as _json
+    from datetime import UTC, datetime, timedelta
+
+    stamp = "20260101T000000"
+    meta = _json.dumps(
+        {
+            "fetched_at": (datetime.now(UTC) - timedelta(hours=hours)).isoformat(),
+            "content_type": "application/json",
+        }
+    )
+    # Every parameter set the source was fetched with: a real warm writes them
+    # all, and Yahoo in particular pages its board across sixteen of them.
+    for directory in (tmp_path / "snaps" / source_dir).iterdir():
+        payload = _json.loads(next(directory.glob("*.snap")).read_bytes())
+        mutate(payload)
+        (directory / f"{stamp}.snap").write_bytes(_json.dumps(payload).encode())
+        (directory / f"{stamp}.meta.json").write_text(meta)
+
+
+def test_movement_is_averaged_over_the_markets_that_agree(tmp_path, fixture_fetcher):
+    """One market moving is noise; several moving together is news, so the
+    count of markets that saw both readings travels with the number."""
+    store = SnapshotStore(tmp_path / "snaps", fixture_fetcher)
+    build_pool(store, league(), season=2026)
+
+    def older_ffc(payload):
+        for row in payload["players"]:
+            if row["name"] == "Christian McCaffrey":
+                row["adp"] += 4.0
+
+    def older_espn(payload):
+        for entry in payload:
+            player = entry.get("player") or entry
+            if player.get("fullName") == "Christian McCaffrey":
+                player["ownership"]["averageDraftPosition"] += 2.0
+
+    _backdate(tmp_path, "ffcalc", older_ffc)
+    _backdate(tmp_path, "espn_market", older_espn)
+
+    cmc = {p.name: p for p in build_pool(store, league(), season=2026).players}[
+        "Christian McCaffrey"
+    ]
+    assert cmc.adp_shift_sources == 2
+    assert cmc.adp_shift == pytest.approx(-3.0)  # the mean of -4 and -2
+
+
+def test_yahoo_history_walks_its_pages_like_its_prices(tmp_path, fixture_fetcher):
+    """Yahoo prices 25 players a page, so its past is paged too."""
+    store = SnapshotStore(tmp_path / "snaps", fixture_fetcher)
+    build_pool(store, league(), season=2026)
+
+    def older_yahoo(payload):
+        for wrapped in payload["fantasy_content"]["game"][1]["players"].values():
+            if not isinstance(wrapped, dict):
+                continue
+            for fragment in wrapped["player"][1:]:
+                if not (isinstance(fragment, dict) and "draft_analysis" in fragment):
+                    continue
+                for item in fragment["draft_analysis"]:
+                    if not (isinstance(item, dict) and "average_pick" in item):
+                        continue
+                    with suppress(ValueError):  # Yahoo writes "-" for no data
+                        item["average_pick"] = str(float(item["average_pick"]) + 5.0)
+
+    _backdate(tmp_path, "yahoo_adp", older_yahoo)
+
+    gibbs = {p.name: p for p in build_pool(store, league(), season=2026).players}["Jahmyr Gibbs"]
+    assert gibbs.adp_shift is not None and gibbs.adp_shift < 0  # taken earlier now
+    assert gibbs.adp_shift_sources == 1  # only Yahoo has a second reading
