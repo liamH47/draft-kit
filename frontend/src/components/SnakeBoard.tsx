@@ -16,7 +16,11 @@ export function SnakeBoard({ board }: { board: Board }) {
   for (const p of board.drafted) byOverall.set(p.overall_no, p)
   const current = board.on_the_clock?.overall_no
   const slots = Array.from({ length: teams }, (_, i) => i + 1)
-  const roundNos = Array.from({ length: rounds }, (_, i) => i + 1)
+  // Rounds nobody has reached yet are fifteen empty rows of nothing, pushing
+  // the pool table off the screen. Show what has happened plus the round in
+  // progress and the next one, and grow as the draft does.
+  const reached = Math.ceil((board.picks_made + 1) / teams) + 1
+  const roundNos = Array.from({ length: Math.min(rounds, Math.max(reached, 2)) }, (_, i) => i + 1)
 
   return (
     <div className="snake-scroll">

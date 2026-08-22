@@ -147,3 +147,22 @@ def test_board_survives_a_dead_network(tmp_path, fixture_fetcher, failing_fetche
     offline.state.snapshot_store = SnapshotStore(tmp_path / "data" / "snapshots", failing_fetcher)
     data = TestClient(offline).get(f"/api/sessions/{sid}/board").json()
     assert len(data["available"]) >= 15  # the draft goes on
+
+
+def test_a_player_who_lasted_past_his_adp_reads_as_a_bargain(client, session):
+    """The column header promises "+ is a steal", and the score's own ADP term
+    agrees. This read the other way round, so the best value on the board was
+    painted red as a reach."""
+    sid = session["session_id"]
+    for player in board(client, session)["available"][:12]:
+        client.post(f"/api/sessions/{sid}/picks", json={"player_id": player["player_id"]})
+
+    data = board(client, session)
+    on_clock = data["on_the_clock"]["overall_no"]
+    priced = [p for p in data["available"] if p["adp"] is not None]
+    assert priced
+    for player in priced:
+        assert player["adp_delta"] == pytest.approx(on_clock - player["adp"], abs=0.05)
+    # The sign reads the way the column header promises it does.
+    cheapest = min(priced, key=lambda p: p["adp"])
+    assert (cheapest["adp_delta"] > 0) is (cheapest["adp"] < on_clock)

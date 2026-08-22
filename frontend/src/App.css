@@ -273,4 +273,11 @@ table.pool th { font-size: 0.68rem; }
   max-width: 100vw;
   margin-left: calc(50% - 50vw);
   box-sizing: border-box;
+  /* The shell centres its contents and frames itself with vertical rules at
+     1126px. Both are wrong for a full-width board: the rules cut straight
+     through it, and centred text pushes every player name into the middle of
+     its column. */
+  text-align: left;
+  background: var(--bg, #fff);
+  position: relative;
 }

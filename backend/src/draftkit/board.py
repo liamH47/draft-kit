@@ -91,7 +91,12 @@ def build_board(
         row = player.model_dump() | {
             "tag": tag_row.get("tag"),
             "note": tag_row.get("note"),
-            "adp_delta": (round(player.adp - on_clock, 1) if player.adp is not None else None),
+            # Picks he has lasted PAST his market price: positive is a bargain
+            # (still here after the room usually takes him), negative is a
+            # reach. The column header promises that sign, and the score's ADP
+            # term already uses it — this read the other way round, so the
+            # board's biggest bargain was painted red as a reach.
+            "adp_delta": (round(on_clock - player.adp, 1) if player.adp is not None else None),
         }
         if player.player_id in drafted:
             drafted_rows[player.player_id] = row

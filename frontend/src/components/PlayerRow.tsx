@@ -93,7 +93,12 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
       </td>
       <td>{player.team ?? '—'}</td>
       <td className="num">{player.bye ?? '—'}</td>
-      <td className="num strong">{player.vorp.toFixed(1)}</td>
+      <td
+        className="num strong"
+        title={`vs the waiver wire ${player.vorp.toFixed(0)} · vs a starting player ${player.vols.toFixed(0)}`}
+      >
+        {player.value.toFixed(1)}
+      </td>
       <td
         className={`num ${(player.vona ?? 0) >= 12 ? 'vona-hot' : ''}`}
         title="What waiting costs: points between him and the next player at his position likely to reach your next pick"

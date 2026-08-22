@@ -13,10 +13,11 @@ type Props = {
 // 'value' is the server's order: value over replacement, the same measure the
 // recommendation score is built on — it tracks ADP roughly while keeping the
 // model's opinion. The others are one click away; nulls sort last.
-type SortKey = 'value' | 'vorp' | 'vona' | 'adp' | 'consensus_rank' | 'market_edge'
+type SortKey = 'value' | 'vorp' | 'vols' | 'vona' | 'adp' | 'consensus_rank' | 'market_edge'
 
 const SORTS: Record<SortKey, (a: PoolPlayer, b: PoolPlayer) => number> = {
   value: (a, b) => a.rank - b.rank,
+  vols: (a, b) => b.vols - a.vols,
   vorp: (a, b) => b.vorp - a.vorp,
   vona: (a, b) => (b.vona ?? -Infinity) - (a.vona ?? -Infinity),
   market_edge: (a, b) => (b.market_edge ?? -Infinity) - (a.market_edge ?? -Infinity),
@@ -48,7 +49,11 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
           <th>Pos</th>
           <th>Tm</th>
           <th>Bye</th>
-          {sortable('vorp', 'VORP', 'Value over replacement player — click to sort')}
+          {sortable(
+            'value',
+            'Value',
+            'Points above a replaceable player at the same position — the number this board is ranked on. It sits halfway between "better than the waiver wire" and "better than what your opponent starts", because either alone distorts a position whose projections crater at the bottom.',
+          )}
           {sortable(
             'vona',
             'Wait?',
