@@ -54,6 +54,13 @@ visibly over degrading silently.
 
 ## Data sources
 
-Sleeper, FantasyFootballCalculator, Boris Chen tiers, and the DynastyProcess ID
-crosswalk — all free and no-auth. FantasyPros data is off-limits on ToS grounds; credit
-FFC and Boris Chen visibly.
+Sleeper (players, projections, ADP and trending adds/drops), FantasyFootballCalculator,
+ESPN, Yahoo, CBS, MyFantasyLeague, Boris Chen tiers, and the DynastyProcess ID
+crosswalk — all free and no-auth. `docs/data-sources.md` is generated from the adapters
+and is the list of record.
+
+**Off limits, and stay that way**: FantasyPros (their terms forbid a published
+aggregator) and Pro Football Focus (subscriber-only, which is a firmer no, not a softer
+one). The route for anything paywalled is `/api/rankings` — the user pastes a list they
+have their own access to, and it joins the published ones. Credit FFC and Boris Chen
+visibly.

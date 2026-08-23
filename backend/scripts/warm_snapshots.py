@@ -15,8 +15,10 @@ from draftkit.sources import (
     espn_market,
     espn_projections,
     ffcalc_adp,
+    mfl_adp,
     sleeper_players,
     sleeper_projections,
+    sleeper_trending,
     yahoo_adp,
 )
 
@@ -48,6 +50,8 @@ def main() -> int:
         (espn_projections, {"season": season}),
         (cbs_rankings, {"format": "ppr"}),
         (cbs_rankings, {"format": "standard"}),
+        (sleeper_trending, {"kind": "add"}),
+        (sleeper_trending, {"kind": "drop"}),
     ]
     # Yahoo pages are 25 wide and ADP fades around the top ~275; warm the
     # full walk so an offline draft can read every page the pool will ask for.
@@ -57,6 +61,7 @@ def main() -> int:
         for teams in sorted(league_team_counts()):
             jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
         jobs.append((borischen_tiers, {"format": preset}))
+        jobs.append((mfl_adp, {"format": preset, "year": season}))
 
     failures = 0
     for adapter, params in jobs:

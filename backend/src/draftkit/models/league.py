@@ -62,6 +62,19 @@ class RosterSlots(BaseModel):
 
 Platform = Literal["sleeper", "espn", "yahoo", "other"]
 
+# Weight per ADP source when blending. Every market the pool can produce is
+# listed: blend_adp gives an UNLISTED source weight 1.0, so a market added
+# after a league was saved would silently outweigh every one of these halves.
+# The pool fills any gaps from here before blending, which is what keeps a
+# league created last week from mispricing a market added this week.
+DEFAULT_ADP_WEIGHTS: dict[str, float] = {
+    "sleeper": 0.5,
+    "ffcalc": 0.5,
+    "espn": 0.5,
+    "yahoo": 0.5,
+    "mfl": 0.5,
+}
+
 
 class LeagueConfig(BaseModel):
     name: str = "My league"
@@ -71,10 +84,8 @@ class LeagueConfig(BaseModel):
     scoring: ScoringSettings
     roster: RosterSlots = RosterSlots()
     # Weight per ADP source name when blending; sources absent from the pool
-    # are skipped. Every source the pool can produce is listed explicitly —
-    # blend_adp gives UNLISTED sources weight 1.0, which would silently
-    # double-weight a new source against these halves.
-    adp_weights: dict[str, float] = {"sleeper": 0.5, "ffcalc": 0.5, "espn": 0.5, "yahoo": 0.5}
+    # are skipped. See DEFAULT_ADP_WEIGHTS above for why every market is named.
+    adp_weights: dict[str, float] = DEFAULT_ADP_WEIGHTS
 
     # Positions that should not be drafted until the end of the draft. A
     # kicker taken in round 6 costs you a real starter, and the spread between

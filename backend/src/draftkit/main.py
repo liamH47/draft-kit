@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from draftkit.api import health, leagues, players, sessions, tags
+from draftkit.api import health, leagues, players, rankings, sessions, tags
 from draftkit.config import Settings, get_settings
 from draftkit.db.connection import connect, migrate
 from draftkit.draft.events import EventBus
@@ -21,7 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     migrate(app.state.db)
     app.state.events = EventBus()
 
-    for router in (health, players, leagues, sessions, tags):
+    for router in (health, players, leagues, rankings, sessions, tags):
         app.include_router(router.router)
 
     if settings.cors_origins:

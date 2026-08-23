@@ -8,8 +8,10 @@ from draftkit.sources import (
     dp_playerids,
     espn_projections,
     ffcalc_adp,
+    mfl_adp,
     sleeper_players,
     sleeper_projections,
+    sleeper_trending,
     yahoo_adp,
 )
 from draftkit.sources.base import RawPayload, SourceError
@@ -199,3 +201,138 @@ def test_yahoo_tolerates_a_page_with_no_player_block():
     payload = {"fantasy_content": {"game": [{"game_key": "470"}]}}
     ds = yahoo_adp.parse(RawPayload(json.dumps(payload).encode(), "application/json"))
     assert ds.rows == []
+
+
+# --- MyFantasyLeague --------------------------------------------------------
+
+
+def test_mfl_parse():
+    raw = load_fixture("myfantasyleague")
+    mfl_adp.validate(raw)
+    ds = mfl_adp.parse(raw)
+    assert ds.rows
+    first = ds.rows[0]
+    assert first["mfl_id"] and isinstance(first["mfl_id"], str)
+    assert first["adp"] > 0
+    # Every row carries the shape of its sample, so a price drawn from nine
+    # drafts can be told apart from one drawn from two hundred.
+    assert first["times_drafted"] >= 1
+    assert first["earliest"] <= first["adp"] <= first["latest"]
+
+
+def test_mfl_request_maps_scoring_to_its_own_reception_flag():
+    assert "IS_PPR=1" in mfl_adp.request({"format": "ppr", "year": 2026}).url
+    assert "IS_PPR=0" in mfl_adp.request({"format": "standard", "year": 2026}).url
+    # MFL has no half-PPR bucket, so half-PPR reads the combined sample.
+    assert "IS_PPR=-1" in mfl_adp.request({"format": "half_ppr", "year": 2026}).url
+    assert "IS_PPR=-1" in mfl_adp.request({"year": 2026}).url
+
+
+def test_mfl_rejects_a_payload_that_is_not_its_own():
+    with pytest.raises(SourceError):
+        mfl_adp.validate(RawPayload(b"<html>down for maintenance</html>", "text/html"))
+    with pytest.raises(SourceError):
+        mfl_adp.validate(RawPayload(b'{"error": "bad request"}', "application/json"))
+    with pytest.raises(SourceError):
+        mfl_adp.validate(RawPayload(b'{"adp": {"player": []}}', "application/json"))
+
+
+def test_mfl_collapses_a_single_row_result_to_a_list():
+    """MFL returns a bare object rather than a one-element list when only one
+    player comes back. Iterating that would walk the dict's KEYS."""
+    body = b'{"adp": {"player": {"id": "16162", "averagePick": "2.10", "rank": "1"}}}'
+    ds = mfl_adp.parse(RawPayload(body, "application/json"))
+    assert [r["mfl_id"] for r in ds.rows] == ["16162"]
+    assert ds.rows[0]["earliest"] is None  # absent fields stay absent, not zero
+
+
+def test_mfl_skips_rows_with_no_id_or_no_price():
+    body = (
+        b'{"adp": {"player": ['
+        b'{"averagePick": "2.10"},'
+        b'{"id": "999", "averagePick": "-"},'
+        b'{"id": "16162", "averagePick": "3.5"}]}}'
+    )
+    ds = mfl_adp.parse(RawPayload(body, "application/json"))
+    assert [r["mfl_id"] for r in ds.rows] == ["16162"]
+
+
+# --- Sleeper trending -------------------------------------------------------
+
+
+def test_sleeper_trending_parse():
+    raw = load_fixture("trending/add")
+    sleeper_trending.validate(raw)
+    ds = sleeper_trending.parse(raw)
+    assert ds.rows
+    assert all(isinstance(r["sleeper_id"], str) for r in ds.rows)
+    assert all(r["trend_count"] > 0 for r in ds.rows)
+
+
+def test_sleeper_trending_request_names_the_kind_it_was_asked_for():
+    assert "trending/add" in sleeper_trending.request({"kind": "add"}).url
+    assert "trending/drop" in sleeper_trending.request({"kind": "drop"}).url
+    assert "trending/add" in sleeper_trending.request({}).url
+    assert "lookback_hours=48" in sleeper_trending.request({"lookback_hours": 48}).url
+
+
+def test_sleeper_trending_refuses_a_kind_that_is_not_a_kind():
+    """A typo here would silently fetch a 404 page and cost the column. Fail
+    at the request, where the mistake is."""
+    with pytest.raises(ValueError, match="trending kind"):
+        sleeper_trending.request({"kind": "adds"})
+
+
+def test_sleeper_trending_rejects_a_payload_that_is_not_a_list():
+    with pytest.raises(SourceError):
+        sleeper_trending.validate(RawPayload(b"<html>nope</html>", "text/html"))
+    with pytest.raises(SourceError):
+        sleeper_trending.validate(RawPayload(b"not json", "application/json"))
+    with pytest.raises(SourceError):
+        sleeper_trending.validate(RawPayload(b"[]", "application/json"))
+    with pytest.raises(SourceError):
+        sleeper_trending.validate(RawPayload(b'{"count": 1}', "application/json"))
+
+
+def test_sleeper_trending_skips_rows_missing_an_id_or_a_count():
+    body = b'[{"count": 10}, {"player_id": "1"}, {"player_id": "2", "count": "lots"}, '
+    body += b'{"player_id": "3", "count": 7}]'
+    ds = sleeper_trending.parse(RawPayload(body, "application/json"))
+    assert ds.rows == [{"sleeper_id": "3", "trend_count": 7}]
+
+
+# --- the crosswalk now carries the key MFL speaks ---------------------------
+
+
+def test_dp_carries_the_mfl_id():
+    raw = load_fixture("db_playerids")
+    ds = dp_playerids.parse(raw)
+    assert any(r["mfl_id"] for r in ds.rows), "no row carried an mfl_id"
+
+
+# --- Sleeper's injury and depth-chart fields --------------------------------
+
+
+def test_sleeper_players_carries_injury_and_depth_chart():
+    """These were already inside the payload we download daily and were being
+    thrown away, which is how a man on IR could top the board."""
+    body = json.dumps(
+        {
+            "1": {
+                "player_id": "1",
+                "full_name": "Hurt Guy",
+                "position": "RB",
+                "team": "SF",
+                "injury_status": "IR",
+                "injury_body_part": "Knee - ACL",
+                "depth_chart_order": 2,
+            },
+            "2": {"player_id": "2", "full_name": "Fit Guy", "position": "RB", "team": "SF"},
+        }
+    ).encode()
+    ds = sleeper_players.parse(RawPayload(body, "application/json"))
+    by_name = {r["name"]: r for r in ds.rows}
+    assert by_name["Hurt Guy"]["injury_status"] == "IR"
+    assert by_name["Hurt Guy"]["injury_body_part"] == "Knee - ACL"
+    assert by_name["Hurt Guy"]["depth_chart_order"] == 2
+    assert by_name["Fit Guy"]["injury_status"] is None

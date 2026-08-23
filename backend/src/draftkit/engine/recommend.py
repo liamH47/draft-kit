@@ -12,6 +12,8 @@ sum of interpretable parts:
   list vs market    — a small nudge: where the room's own list disagrees with
                       the market, weighted down because it predicts behaviour
                       rather than measuring value
+  injury            — a man who will not play scores nothing, whatever his
+                      projection says
   late-round hold   — kickers and defenses wait until the end of the draft
   must-fill         — when every remaining pick is needed for an empty starting
                       slot, those positions outrank everything
@@ -53,6 +55,26 @@ LATE_ROUND_ELITE_VORP = 25.0
 # question — so this breaks ties and never decides a pick on its own.
 LIST_VALUE_PER_PICK = 0.15
 LIST_VALUE_CAP = 5.0
+# A projection forecasts what a player would do IF HE PLAYS. It does not know
+# he is on IR, so without this the board will happily lead with a man who is
+# out for the year. Two buckets, because they are genuinely different problems:
+#
+#   season-ending — he is not coming back in time to matter. Sink him beneath
+#                   any healthy player worth the pick.
+#   provisional   — he is hurt now and may well be active in week one. Preseason
+#                   PUP is the common case: a real risk and a real discount, not
+#                   a write-off. Grading these the same cost George Kittle four
+#                   rounds for an Achilles he was expected to return from.
+#
+# Both leave him on the board with his designation shown. Neither is large
+# enough to stop the user tagging him a target and overriding the lot.
+# Compared case-folded: the feed is not contractually stable about casing.
+SEASON_ENDING_STATUSES = frozenset({"IR", "DNR", "SUS", "SUSPENDED"})
+PROVISIONAL_STATUSES = frozenset({"PUP", "NA", "COV", "OUT"})
+SEASON_ENDING_PENALTY = 45.0
+PROVISIONAL_PENALTY = 20.0
+# Questionable and Doubtful are week-to-week noise months before kickoff. They
+# are shown on the board and deliberately never scored.
 
 
 @dataclass
@@ -73,6 +95,8 @@ class Candidate:
     # NEXT pick. Near zero means the position keeps and the pick is better
     # spent elsewhere; large means the drop-off behind him is real.
     vona: float | None = None
+    # Sleeper's injury designation, verbatim. See OUT_STATUSES.
+    injury_status: str | None = None
 
 
 @dataclass
@@ -178,6 +202,17 @@ def recommend(
     for c in available:
         score = c.vorp
         reasons: list[str] = []
+
+        # Before anything else: can he play? A hurt player still carries his
+        # full projection, because a projection cannot know. Say so out loud —
+        # a name that quietly sinks down the board reads as a bug mid-draft.
+        status = (c.injury_status or "").upper()
+        if status in SEASON_ENDING_STATUSES:
+            score -= SEASON_ENDING_PENALTY
+            reasons.append(f"{c.injury_status} — out for the season; a stash at best")
+        elif status in PROVISIONAL_STATUSES:
+            score -= PROVISIONAL_PENALTY
+            reasons.append(f"{c.injury_status} — hurt now, and may not open the season")
 
         forced = must_fill and c.position in shortfall
         if forced:

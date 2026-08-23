@@ -12,7 +12,16 @@ import draftkit.sources as sources_package
 from draftkit.snapshots.store import SnapshotStore
 from draftkit.sources import registry
 
-KINDS = {"identity", "projection", "market", "platform", "expert", "crosswalk", "league"}
+KINDS = {
+    "identity",
+    "projection",
+    "market",
+    "platform",
+    "expert",
+    "buzz",
+    "crosswalk",
+    "league",
+}
 AUTH_KINDS = {"none", "oauth", "extension"}
 
 
@@ -89,6 +98,8 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
         "espn_projections": {"season": 2026},
         "cbs_rankings": {"format": "ppr"},
         "yahoo_adp": {"start": 0},
+        "mfl_adp": {"format": "half_ppr", "year": 2026},
+        "sleeper_trending": {"kind": "add"},
     }
     for info in registry.all_sources():
         dataset, _ = store.get(info.module, params[info.name])

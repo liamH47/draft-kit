@@ -40,6 +40,7 @@ def build_board(
         season=season,
         scoring_preset=scoring_preset,
         overrides_path=_OVERRIDES,
+        custom_ranks=repo.custom_ranks_for_pool(conn),
     )
     picks = repo.live_picks(conn, session["id"])
     tags = repo.get_tags(conn)
@@ -120,6 +121,7 @@ def build_board(
                 tier=(player.tier_expert if player.position in expert_positions else player.tier),
                 tag=tag_row.get("tag"),
                 list_vs_market=player.list_vs_market,
+                injury_status=player.injury_status,
             )
         )
 

@@ -134,6 +134,10 @@ h2.or { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; o
 table.pool { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 table.pool th { text-align: left; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; padding: 0.3rem 0.4rem; }
 table.pool td { padding: 0.28rem 0.4rem; border-top: 1px solid var(--line); }
+/* The app shell centres its content, which pushed every player name into
+   the middle of a wide column. The pool table is a table: it reads down a
+   left edge. The .num cells opt back out immediately below. */
+table.pool td, table.pool th { text-align: left; }
 table.pool .num { text-align: right; font-variant-numeric: tabular-nums; }
 table.pool .strong { font-weight: 700; }
 .tier-cell { display: flex; align-items: center; gap: 0.4rem; }
@@ -244,6 +248,14 @@ table.roster .count { opacity: 0.6; font-weight: 400; }
 .flag.sleeper { background: rgba(46, 158, 79, 0.16); color: var(--steal); text-transform: uppercase; letter-spacing: 0.03em; }
 .flag.rising { color: var(--steal); }
 .flag.falling { color: var(--reach); }
+/* Buzz: what the rooms did in the last day, which moves before ADP does. */
+.flag.buzz { background: rgba(214, 122, 20, 0.16); color: #a35a08; text-transform: uppercase; }
+.flag.cold { background: rgba(90, 100, 120, 0.14); color: #5a6478; text-transform: uppercase; }
+/* Injury: the only badge that can cost a season, so it reads first. */
+.flag.injury { text-transform: uppercase; letter-spacing: 0.03em; }
+.flag.injury.out { background: rgba(190, 40, 40, 0.16); color: #a51f1f; }
+.flag.injury.doubt { background: rgba(214, 122, 20, 0.16); color: #a35a08; }
+.flag.injury.watch { background: rgba(120, 120, 120, 0.12); color: #6a6a6a; font-weight: 600; }
 td.vona-hot { color: var(--tier-1); font-weight: 700; }
 .rec-head .wait {
   font-size: 0.68rem; padding: 0.05rem 0.35rem; border-radius: 3px;
@@ -281,3 +293,25 @@ table.pool th { font-size: 0.68rem; }
   background: var(--bg, #fff);
   position: relative;
 }
+
+/* --- ranking lists you bring in yourself --- */
+.ranking-import { margin: 0.5rem 0 1rem; text-align: left; }
+.ranking-import .disclose {
+  font: inherit; font-size: 0.85rem; background: none; border: none;
+  padding: 0; cursor: pointer; color: inherit; opacity: 0.85;
+}
+.ranking-list { list-style: none; padding: 0; margin: 0.4rem 0; font-size: 0.85rem; }
+.ranking-list li { padding: 0.15rem 0; }
+.ranking-list .link {
+  font: inherit; font-size: 0.8rem; background: none; border: none;
+  cursor: pointer; color: var(--reach); margin-left: 0.5rem; text-decoration: underline;
+}
+.ranking-form { max-width: 46rem; margin-top: 0.5rem; }
+.ranking-form input[type='text'] { font: inherit; padding: 0.3rem 0.5rem; width: 18rem; }
+.ranking-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem;
+  width: 100%; margin-top: 0.4rem; padding: 0.4rem 0.5rem; box-sizing: border-box;
+}
+.ranking-form button { font: inherit; font-size: 0.85rem; cursor: pointer; padding: 0.2rem 0.7rem; }
+.ranking-result { font-size: 0.85rem; }
+.warn { color: var(--reach); }

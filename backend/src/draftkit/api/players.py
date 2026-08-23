@@ -3,6 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Request
 
+from draftkit.db import repo
 from draftkit.models.league import LeagueConfig, ScoringSettings
 from draftkit.pool import build_pool
 from draftkit.snapshots.store import SnapshotStore
@@ -27,6 +28,7 @@ def players(
         season=settings.season,
         scoring_preset=scoring,
         overrides_path=_OVERRIDES,
+        custom_ranks=repo.custom_ranks_for_pool(request.app.state.db),
     )
     return {
         "players": [p.model_dump() for p in result.players],

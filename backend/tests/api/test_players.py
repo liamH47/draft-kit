@@ -22,7 +22,7 @@ def test_pool_end_to_end(tmp_path, fixture_fetcher):
     by_name = {p["name"]: p for p in players}
     cmc = by_name["Christian McCaffrey"]
     assert cmc["adp"] is not None
-    assert set(cmc["adp_by_source"]) == {"sleeper", "ffcalc", "espn"}
+    assert set(cmc["adp_by_source"]) == {"sleeper", "ffcalc", "espn", "mfl"}
     assert cmc["bye"] is not None  # joined from FFC despite name-only match
     assert cmc["tier"] is not None
     assert cmc["tier_expert"] is not None  # Boris Chen join

@@ -224,3 +224,110 @@ def replace_tags(conn: sqlite3.Connection, tags: dict[str, dict], *, user_id: st
             )
             written += 1
     return written
+
+
+# --- custom ranking lists --------------------------------------------------
+
+
+def replace_ranking_list(
+    conn: sqlite3.Connection,
+    list_name: str,
+    rows: list[dict[str, Any]],
+    *,
+    user_id: str = "local",
+) -> int:
+    """Store a pasted list, replacing any previous paste under that name.
+
+    Wholesale replacement rather than a merge: re-pasting a list means the
+    publisher updated it, and a merge would leave last week's players sitting
+    at ranks the new list no longer has.
+    """
+    now = _now()
+    with conn:
+        conn.execute(
+            "DELETE FROM custom_ranking WHERE user_id = ? AND list_name = ?",
+            (user_id, list_name),
+        )
+        conn.executemany(
+            """INSERT INTO custom_ranking
+                 (user_id, list_name, rank, player_id, source_name, position, team, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                (
+                    user_id,
+                    list_name,
+                    row["rank"],
+                    row.get("player_id"),
+                    row["source_name"],
+                    row.get("position"),
+                    row.get("team"),
+                    now,
+                )
+                for row in rows
+            ],
+        )
+    return len(rows)
+
+
+def get_ranking_list(
+    conn: sqlite3.Connection, list_name: str, *, user_id: str = "local"
+) -> list[dict]:
+    rows = conn.execute(
+        "SELECT * FROM custom_ranking WHERE user_id = ? AND list_name = ? ORDER BY rank",
+        (user_id, list_name),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_ranking_lists(conn: sqlite3.Connection, user_id: str = "local") -> dict[str, list[dict]]:
+    """Every list the user holds, keyed by name. This is what the pool joins
+    against, so it returns rows rather than counts."""
+    rows = conn.execute(
+        "SELECT * FROM custom_ranking WHERE user_id = ? ORDER BY list_name, rank",
+        (user_id,),
+    ).fetchall()
+    lists: dict[str, list[dict]] = {}
+    for row in rows:
+        lists.setdefault(row["list_name"], []).append(dict(row))
+    return lists
+
+
+def ranking_list_summaries(conn: sqlite3.Connection, user_id: str = "local") -> list[dict]:
+    """Name, size and how much of it resolved — the numbers the UI shows so a
+    list that half failed to match is obvious before draft night."""
+    rows = conn.execute(
+        """SELECT list_name,
+                  COUNT(*) AS total,
+                  COUNT(player_id) AS matched,
+                  MAX(updated_at) AS updated_at
+           FROM custom_ranking WHERE user_id = ?
+           GROUP BY list_name ORDER BY list_name""",
+        (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def custom_ranks_for_pool(
+    conn: sqlite3.Connection, user_id: str = "local"
+) -> dict[str, dict[str, float]]:
+    """Shaped the way the pool wants it: list name -> player id -> rank.
+
+    Rows whose name never resolved are dropped here rather than earlier — they
+    are kept in the table so the user can see what failed, but the pool has
+    nothing to join them to.
+    """
+    out: dict[str, dict[str, float]] = {}
+    for list_name, rows in get_ranking_lists(conn, user_id).items():
+        ranks = {r["player_id"]: float(r["rank"]) for r in rows if r["player_id"]}
+        if ranks:
+            out[list_name] = ranks
+    return out
+
+
+def delete_ranking_list(conn: sqlite3.Connection, list_name: str, *, user_id: str = "local") -> int:
+    with conn:
+        cur = conn.execute(
+            "DELETE FROM custom_ranking WHERE user_id = ? AND list_name = ?",
+            (user_id, list_name),
+        )
+    return cur.rowcount

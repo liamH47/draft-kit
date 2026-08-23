@@ -1,3 +1,5 @@
+import pytest
+
 from draftkit.engine.recommend import Candidate, recommend
 from draftkit.models.league import LeagueConfig, RosterSlots, ScoringSettings
 
@@ -258,3 +260,89 @@ def test_autodrafters_damp_scarcity():
 def test_a_fully_automated_room_creates_no_urgency():
     out = rec([cand("a", "RB", 20, vona=20.0)], picks_until_turn=8, autodraft_count=12)[0]
     assert not any("waiting costs" in r for r in out.reasons)
+
+
+# --- injury: a projection cannot know he is hurt ----------------------------
+
+
+def _healthy_and_hurt(status):
+    """Two identical players, one carrying an injury designation."""
+    return [
+        Candidate(player_id="fit", name="Fit", position="RB", points=250, vorp=80),
+        Candidate(
+            player_id="hurt",
+            name="Hurt",
+            position="RB",
+            points=250,
+            vorp=80,
+            injury_status=status,
+        ),
+    ]
+
+
+@pytest.mark.parametrize("status", ["IR", "PUP", "Out", "Sus", "NA", "DNR", "COV"])
+def test_a_player_who_will_not_play_falls_behind_an_identical_healthy_one(status):
+    """Their projections are identical, because a projection forecasts what he
+    would do IF HE PLAYS. The board has to know he might not."""
+    out = recommend(
+        _healthy_and_hurt(status),
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        picks_until_turn=10,
+    )
+    assert [r.player_id for r in out] == ["fit", "hurt"]
+    hurt = next(r for r in out if r.player_id == "hurt")
+    assert any(status in reason for reason in hurt.reasons), hurt.reasons
+
+
+def test_the_designation_is_read_however_it_is_cased():
+    """The feed is not contractually stable about casing, and a lowercase "ir"
+    slipping through would silently restore the bug."""
+    out = recommend(
+        _healthy_and_hurt("ir"),
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        picks_until_turn=10,
+    )
+    assert out[0].player_id == "fit"
+
+
+@pytest.mark.parametrize("status", ["Questionable", "Doubtful", None])
+def test_a_soft_designation_does_not_move_the_score(status):
+    """Questionable in August means nothing by draft day. It belongs on the
+    board, not in the arithmetic."""
+    out = recommend(
+        _healthy_and_hurt(status),
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        picks_until_turn=10,
+    )
+    assert {r.score for r in out} == {out[0].score}
+
+
+def test_a_season_ending_designation_costs_more_than_a_provisional_one():
+    """Preseason PUP and a torn ACL are different problems. Grading them the
+    same cost a tight end four rounds for an Achilles he was expected back
+    from, so the discount follows how likely he is to play."""
+    out = recommend(
+        [
+            Candidate(
+                player_id="ir", name="IR", position="RB", points=250, vorp=80, injury_status="IR"
+            ),
+            Candidate(
+                player_id="pup", name="PUP", position="RB", points=250, vorp=80, injury_status="PUP"
+            ),
+            Candidate(player_id="fit", name="Fit", position="RB", points=250, vorp=80),
+        ],
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        picks_until_turn=10,
+    )
+    assert [r.player_id for r in out] == ["fit", "pup", "ir"]
+    by_id = {r.player_id: r for r in out}
+    assert "out for the season" in " ".join(by_id["ir"].reasons)
+    assert "may not open the season" in " ".join(by_id["pup"].reasons)

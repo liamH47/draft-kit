@@ -1,5 +1,5 @@
 // Every call is a relative /api path: Vite proxies in dev, same origin in prod.
-import type { Board, League, ScoringPreset, Tag } from './types'
+import type { Board, League, RankingImport, RankingList, ScoringPreset, Tag } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, {
@@ -92,4 +92,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ tags }),
     }),
+
+  // Ranking lists you bring in yourself: paste a cheat sheet, a spreadsheet
+  // column, or a table copied off a page. They join the published lists in the
+  // consensus rank, so a source we cannot fetch is still a source you can use.
+  listRankings: () => request<{ lists: RankingList[] }>('/api/rankings'),
+  importRanking: (name: string, text: string) =>
+    request<RankingImport>(`/api/rankings/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ text }),
+    }),
+  deleteRanking: (name: string) =>
+    request<unknown>(`/api/rankings/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 }
