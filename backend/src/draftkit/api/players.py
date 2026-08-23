@@ -3,6 +3,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Request
 
+from draftkit.auth.routes import CurrentUser
 from draftkit.db import repo
 from draftkit.models.league import LeagueConfig, ScoringSettings
 from draftkit.pool import build_pool
@@ -16,6 +17,7 @@ _OVERRIDES = Path(__file__).parent.parent / "identity" / "overrides.yaml"
 @router.get("/api/players")
 def players(
     request: Request,
+    user: CurrentUser,
     scoring: Literal["standard", "half_ppr", "ppr"] = "half_ppr",
     teams: int = 12,
 ) -> dict[str, object]:
@@ -28,7 +30,7 @@ def players(
         season=settings.season,
         scoring_preset=scoring,
         overrides_path=_OVERRIDES,
-        custom_ranks=repo.custom_ranks_for_pool(request.app.state.db),
+        custom_ranks=repo.custom_ranks_for_pool(request.app.state.db, user.user_id),
     )
     return {
         "players": [p.model_dump() for p in result.players],

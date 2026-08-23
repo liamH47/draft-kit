@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from draftkit.auth.routes import CurrentUser
 from draftkit.board import build_board
 from draftkit.db import repo
 from draftkit.draft import ingest
@@ -31,11 +32,14 @@ class PickCreate(BaseModel):
     source: str = "manual"
 
 
-def _load(conn: sqlite3.Connection, session_id: int) -> tuple[dict, dict]:
-    session = repo.get_session(conn, session_id)
+def _load(conn: sqlite3.Connection, session_id: int, user_id: str) -> tuple[dict, dict]:
+    """Every session route funnels through here, so ownership is enforced
+    once. Somebody else's session id answers 404, the same as an id that
+    never existed - a guessed URL learns nothing."""
+    session = repo.get_session(conn, session_id, user_id)
     if session is None:
         raise HTTPException(404, "session not found")
-    league = repo.get_league(conn, session["league_id"])
+    league = repo.get_league(conn, session["league_id"], user_id)
     if league is None:
         raise HTTPException(404, "league not found")
     return session, league
@@ -71,34 +75,39 @@ def _board(conn: sqlite3.Connection, session: dict, league: dict) -> dict:
 
 
 @router.post("")
-def create_session(request: Request, body: SessionCreate) -> dict:
+def create_session(request: Request, body: SessionCreate, user: CurrentUser) -> dict:
     conn = request.app.state.db
-    if repo.get_league(conn, body.league_id) is None:
+    if repo.get_league(conn, body.league_id, user.user_id) is None:
         raise HTTPException(404, "league not found")
     session_id = repo.create_session(
-        conn, body.league_id, body.name, sync_source=body.sync_source, sync_ref=body.sync_ref
+        conn,
+        body.league_id,
+        body.name,
+        sync_source=body.sync_source,
+        sync_ref=body.sync_ref,
+        user_id=user.user_id,
     )
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     return _board(conn, session, league)
 
 
 @router.get("")
-def list_sessions(request: Request) -> list[dict]:
-    return repo.list_sessions(request.app.state.db)
+def list_sessions(request: Request, user: CurrentUser) -> list[dict]:
+    return repo.list_sessions(request.app.state.db, user.user_id)
 
 
 @router.get("/{session_id}")
-def get_session(request: Request, session_id: int) -> dict:
+def get_session(request: Request, session_id: int, user: CurrentUser) -> dict:
     conn = request.app.state.db
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     return _board(conn, session, league)
 
 
 @router.get("/{session_id}/board")
-def get_board(request: Request, session_id: int) -> dict:
+def get_board(request: Request, session_id: int, user: CurrentUser) -> dict:
     """Everything the draft screen needs in one request."""
     conn = request.app.state.db
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     return build_board(
         conn,
         request.app.state.snapshot_store,
@@ -109,9 +118,9 @@ def get_board(request: Request, session_id: int) -> dict:
 
 
 @router.post("/{session_id}/picks")
-def create_pick(request: Request, session_id: int, body: PickCreate) -> dict:
+def create_pick(request: Request, session_id: int, body: PickCreate, user: CurrentUser) -> dict:
     conn = request.app.state.db
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     try:
         pick = ingest.record_pick(
             conn, session, league, body.player_id, source=body.source, is_mine=body.is_mine
@@ -133,10 +142,12 @@ class PickCorrection(BaseModel):
 
 
 @router.put("/{session_id}/picks/{overall_no}")
-def correct_pick(request: Request, session_id: int, overall_no: int, body: PickCorrection) -> dict:
+def correct_pick(
+    request: Request, session_id: int, overall_no: int, body: PickCorrection, user: CurrentUser
+) -> dict:
     """Fix a pick you got wrong several picks ago, without unwinding the board."""
     conn = request.app.state.db
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     try:
         pick = ingest.correct_pick(conn, session, league, overall_no, body.player_id)
     except ingest.NoSuchPick as exc:
@@ -150,9 +161,9 @@ def correct_pick(request: Request, session_id: int, overall_no: int, body: PickC
 
 
 @router.post("/{session_id}/picks/undo")
-def undo_pick(request: Request, session_id: int) -> dict:
+def undo_pick(request: Request, session_id: int, user: CurrentUser) -> dict:
     conn = request.app.state.db
-    session, league = _load(conn, session_id)
+    session, league = _load(conn, session_id, user.user_id)
     pick = ingest.undo_last_pick(conn, session)
     board = _board(conn, session, league)
     if pick is not None:
@@ -165,9 +176,9 @@ def undo_pick(request: Request, session_id: int) -> dict:
 
 
 @router.get("/{session_id}/events")
-async def session_events(request: Request, session_id: int) -> StreamingResponse:
+async def session_events(request: Request, session_id: int, user: CurrentUser) -> StreamingResponse:
     conn = request.app.state.db
-    _load(conn, session_id)
+    _load(conn, session_id, user.user_id)
     bus = request.app.state.events
     queue = bus.subscribe(session_id)
 

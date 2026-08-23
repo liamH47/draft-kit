@@ -1,5 +1,5 @@
 // Every call is a relative /api path: Vite proxies in dev, same origin in prod.
-import type { Board, League, RankingImport, RankingList, ScoringPreset, Tag } from './types'
+import type { Board, League, Me, RankingImport, RankingList, ScoringPreset, Tag } from './types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(path, {
@@ -7,6 +7,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
   })
   if (!resp.ok) {
+    if (resp.status === 401 && !location.pathname.startsWith('/login')) {
+      // Signed out (or never signed in) on a hosted install: walk to the
+      // login page, and still throw so any in-flight UI shows an error
+      // rather than a silent blank.
+      location.assign('/login')
+    }
     const detail = await resp.json().catch(() => ({}))
     throw new Error(detail.detail ?? `HTTP ${resp.status}`)
   }
@@ -38,6 +44,8 @@ export type LeagueDraft = {
 
 export const api = {
   health: () => request<{ status: string; version: string }>('/api/health'),
+  me: () => request<Me>('/api/me'),
+  logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 
   listLeagues: () => request<League[]>('/api/leagues'),
   createLeague: (body: LeagueDraft) =>

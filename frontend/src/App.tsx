@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import './App.css'
 import { CheatSheet } from './routes/CheatSheet'
 import { DraftBoard } from './routes/DraftBoard'
+import { Login } from './routes/Login'
 import { SetupWizard } from './routes/SetupWizard'
 
 const queryClient = new QueryClient({
@@ -16,6 +17,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<SetupWizard />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/draft/:sessionId" element={<DraftBoard />} />
           <Route path="/cheatsheet/:leagueId" element={<CheatSheet />} />
         </Routes>

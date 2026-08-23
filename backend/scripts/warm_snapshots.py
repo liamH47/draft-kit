@@ -31,7 +31,7 @@ def league_team_counts() -> set[int]:
     settings = get_settings()
     try:
         conn = connect(settings.db_path)
-        counts |= {league["num_teams"] for league in repo.list_leagues(conn)}
+        counts |= repo.league_team_counts(conn)
         conn.close()
     except Exception:
         pass  # no database yet — the default still gets warmed

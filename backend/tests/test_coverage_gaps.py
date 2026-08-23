@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from draftkit.api.sessions import session_events
+from draftkit.auth.session import SessionUser
 from draftkit.config import Settings
 from draftkit.db import repo
 from draftkit.db.connection import connect, migrate
@@ -52,9 +53,12 @@ def test_a_session_whose_league_vanished_is_a_404(tmp_path):
     app = create_app(settings)
     conn = app.state.db
     league_id = repo.create_league(
-        conn, LeagueConfig(scoring=ScoringSettings.preset("ppr")), scoring_preset="ppr"
+        conn,
+        LeagueConfig(scoring=ScoringSettings.preset("ppr")),
+        scoring_preset="ppr",
+        user_id="local",
     )
-    session_id = repo.create_session(conn, league_id, "orphan")
+    session_id = repo.create_session(conn, league_id, "orphan", user_id="local")
     with conn:
         conn.execute("PRAGMA foreign_keys=OFF")
         conn.execute("DELETE FROM league WHERE id = ?", (league_id,))
@@ -167,7 +171,7 @@ def fake_request(app) -> Request:
 
 
 async def open_stream(app, session_id) -> AsyncGenerator[str, None]:
-    resp = await session_events(fake_request(app), session_id)
+    resp = await session_events(fake_request(app), session_id, SessionUser("local", ""))
     assert resp.media_type == "text/event-stream"
     return cast(AsyncGenerator[str, None], resp.body_iterator)
 
@@ -175,9 +179,12 @@ async def open_stream(app, session_id) -> AsyncGenerator[str, None]:
 def start_session(tmp_path, name):
     app = create_app(Settings(data_dir=tmp_path / "data"))
     league_id = repo.create_league(
-        app.state.db, LeagueConfig(scoring=ScoringSettings.preset("ppr")), scoring_preset="ppr"
+        app.state.db,
+        LeagueConfig(scoring=ScoringSettings.preset("ppr")),
+        scoring_preset="ppr",
+        user_id="local",
     )
-    return app, repo.create_session(app.state.db, league_id, name)
+    return app, repo.create_session(app.state.db, league_id, name, user_id="local")
 
 
 async def next_chunk(chunks):

@@ -40,10 +40,10 @@ def build_board(
         season=season,
         scoring_preset=scoring_preset,
         overrides_path=_OVERRIDES,
-        custom_ranks=repo.custom_ranks_for_pool(conn),
+        custom_ranks=repo.custom_ranks_for_pool(conn, session["user_id"]),
     )
     picks = repo.live_picks(conn, session["id"])
-    tags = repo.get_tags(conn)
+    tags = repo.get_tags(conn, session["user_id"])
 
     drafted = {p["player_id"] for p in picks}
     mine = [p["player_id"] for p in picks if p["is_mine"]]

@@ -59,6 +59,26 @@ cd backend && uv run python scripts/warm_snapshots.py
 morning. If a source is unreachable the app keeps serving the last good snapshot and
 shows a banner rather than going blank.
 
+## Hosting it for your league
+
+By default draftkit is single-user and local: no accounts, no cookies, nothing to
+configure. To put it on the internet so friends can use it, turn on Google sign-in —
+each signed-in user gets their own leagues, tags, and ranking lists, invisible to the
+others, and only the emails you allow-list can get in at all.
+
+Set `DRAFTKIT_AUTH=google` plus the other `DRAFTKIT_*` auth vars documented in
+`.env.example` (the app refuses to boot half-configured, naming what is missing), and
+register `<your-url>/auth/google/callback` as the OAuth redirect URI in the
+[Google Cloud console](https://console.cloud.google.com). While the OAuth consent
+screen is in Testing status, each friend's Gmail must also be added there as a test
+user.
+
+`fly.toml` deploys it to a single Fly.io machine with a 1GB volume at `/data` for the
+SQLite database and snapshot cache — no hosted database or cache needed. Keep it at
+**one machine, one uvicorn worker**: the live-draft event stream and the pool cache
+are in-process. ESPN league import is limited to `DRAFTKIT_OWNER_EMAIL`, because it
+talks to ESPN with the operator's own cookies.
+
 ## Using it on draft night
 
 1. **Set up the league.** If it is on ESPN, paste the league ID from the URL and hit

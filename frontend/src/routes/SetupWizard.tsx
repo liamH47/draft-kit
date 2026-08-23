@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { api, type LeagueDraft, type RosterSlots } from '../api/client'
 import type { ScoringPreset } from '../api/types'
+import { UserChip } from '../components/UserChip'
 
 const SCORING: { value: ScoringPreset; label: string }[] = [
   { value: 'ppr', label: 'PPR' },
@@ -85,6 +86,7 @@ export function SetupWizard() {
   return (
     <main className="wrap">
       <h1>draftkit</h1>
+      <UserChip />
       <p className="muted">Set up a league, then start a draft.</p>
 
       <section className="import">
