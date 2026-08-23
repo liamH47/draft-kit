@@ -12,6 +12,29 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# --- users ------------------------------------------------------------------
+
+
+def upsert_user(
+    conn: sqlite3.Connection, *, google_sub: str, email: str, name: str, picture: str
+) -> dict:
+    """One row per Google identity that has signed in. Authorization is the
+    env allow-list, not this table — it exists for display and for answering
+    "who has actually used this install"."""
+    now = _now()
+    with conn:
+        conn.execute(
+            """INSERT INTO user_account (google_sub, email, name, picture, first_login, last_login)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(google_sub) DO UPDATE SET
+                 email = excluded.email, name = excluded.name, picture = excluded.picture,
+                 last_login = excluded.last_login""",
+            (google_sub, email, name, picture, now, now),
+        )
+    row = conn.execute("SELECT * FROM user_account WHERE google_sub = ?", (google_sub,)).fetchone()
+    return dict(row)
+
+
 # --- leagues ---------------------------------------------------------------
 
 
@@ -21,7 +44,7 @@ def create_league(
     *,
     scoring_preset: str,
     rounds: int = 15,
-    user_id: str = "local",
+    user_id: str,
 ) -> int:
     with conn:
         cur = conn.execute(
@@ -44,16 +67,24 @@ def create_league(
     return int(cur.lastrowid or 0)
 
 
-def get_league(conn: sqlite3.Connection, league_id: int, user_id: str = "local") -> dict | None:
+def get_league(conn: sqlite3.Connection, league_id: int, user_id: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM league WHERE id = ? AND user_id = ?", (league_id, user_id)
     ).fetchone()
     return _league_row(row) if row else None
 
 
-def list_leagues(conn: sqlite3.Connection, user_id: str = "local") -> list[dict]:
+def list_leagues(conn: sqlite3.Connection, user_id: str) -> list[dict]:
     rows = conn.execute("SELECT * FROM league WHERE user_id = ? ORDER BY id", (user_id,)).fetchall()
     return [_league_row(r) for r in rows]
+
+
+def league_team_counts(conn: sqlite3.Connection) -> set[int]:
+    """Every league's team count, across ALL users on purpose: snapshot
+    warming is per shape, not per user, and a warm run that skipped a
+    friend's 8-team league would leave their offline draft unreadable."""
+    rows = conn.execute("SELECT DISTINCT num_teams FROM league").fetchall()
+    return {row["num_teams"] for row in rows}
 
 
 def _league_row(row: sqlite3.Row) -> dict:
@@ -72,7 +103,7 @@ def create_session(
     *,
     sync_source: str | None = None,
     sync_ref: str | None = None,
-    user_id: str = "local",
+    user_id: str,
 ) -> int:
     with conn:
         cur = conn.execute(
@@ -84,14 +115,14 @@ def create_session(
     return int(cur.lastrowid or 0)
 
 
-def get_session(conn: sqlite3.Connection, session_id: int, user_id: str = "local") -> dict | None:
+def get_session(conn: sqlite3.Connection, session_id: int, user_id: str) -> dict | None:
     row = conn.execute(
         "SELECT * FROM draft_session WHERE id = ? AND user_id = ?", (session_id, user_id)
     ).fetchone()
     return dict(row) if row else None
 
 
-def list_sessions(conn: sqlite3.Connection, user_id: str = "local") -> list[dict]:
+def list_sessions(conn: sqlite3.Connection, user_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM draft_session WHERE user_id = ? ORDER BY id DESC", (user_id,)
     ).fetchall()
@@ -174,7 +205,7 @@ def set_tag(
     *,
     tag: str | None,
     note: str | None,
-    user_id: str = "local",
+    user_id: str,
 ) -> dict:
     """Tags are per-user, not per-league: they are opinions about players and
     they follow you into every draft you run."""
@@ -193,12 +224,12 @@ def set_tag(
     return dict(row)
 
 
-def get_tags(conn: sqlite3.Connection, user_id: str = "local") -> dict[str, dict]:
+def get_tags(conn: sqlite3.Connection, user_id: str) -> dict[str, dict]:
     rows = conn.execute("SELECT * FROM player_tag WHERE user_id = ?", (user_id,)).fetchall()
     return {r["player_id"]: dict(r) for r in rows}
 
 
-def replace_tags(conn: sqlite3.Connection, tags: dict[str, dict], *, user_id: str = "local") -> int:
+def replace_tags(conn: sqlite3.Connection, tags: dict[str, dict], *, user_id: str) -> int:
     """Merge an exported tag set back in (import). Rows already present are
     overwritten; rows absent from the import are left alone, so importing a
     partial file can only add opinions, never silently drop them."""
@@ -234,7 +265,7 @@ def replace_ranking_list(
     list_name: str,
     rows: list[dict[str, Any]],
     *,
-    user_id: str = "local",
+    user_id: str,
 ) -> int:
     """Store a pasted list, replacing any previous paste under that name.
 
@@ -269,9 +300,7 @@ def replace_ranking_list(
     return len(rows)
 
 
-def get_ranking_list(
-    conn: sqlite3.Connection, list_name: str, *, user_id: str = "local"
-) -> list[dict]:
+def get_ranking_list(conn: sqlite3.Connection, list_name: str, *, user_id: str) -> list[dict]:
     rows = conn.execute(
         "SELECT * FROM custom_ranking WHERE user_id = ? AND list_name = ? ORDER BY rank",
         (user_id, list_name),
@@ -279,7 +308,7 @@ def get_ranking_list(
     return [dict(r) for r in rows]
 
 
-def get_ranking_lists(conn: sqlite3.Connection, user_id: str = "local") -> dict[str, list[dict]]:
+def get_ranking_lists(conn: sqlite3.Connection, user_id: str) -> dict[str, list[dict]]:
     """Every list the user holds, keyed by name. This is what the pool joins
     against, so it returns rows rather than counts."""
     rows = conn.execute(
@@ -292,7 +321,7 @@ def get_ranking_lists(conn: sqlite3.Connection, user_id: str = "local") -> dict[
     return lists
 
 
-def ranking_list_summaries(conn: sqlite3.Connection, user_id: str = "local") -> list[dict]:
+def ranking_list_summaries(conn: sqlite3.Connection, user_id: str) -> list[dict]:
     """Name, size and how much of it resolved — the numbers the UI shows so a
     list that half failed to match is obvious before draft night."""
     rows = conn.execute(
@@ -307,9 +336,7 @@ def ranking_list_summaries(conn: sqlite3.Connection, user_id: str = "local") -> 
     return [dict(r) for r in rows]
 
 
-def custom_ranks_for_pool(
-    conn: sqlite3.Connection, user_id: str = "local"
-) -> dict[str, dict[str, float]]:
+def custom_ranks_for_pool(conn: sqlite3.Connection, user_id: str) -> dict[str, dict[str, float]]:
     """Shaped the way the pool wants it: list name -> player id -> rank.
 
     Rows whose name never resolved are dropped here rather than earlier — they
@@ -324,7 +351,7 @@ def custom_ranks_for_pool(
     return out
 
 
-def delete_ranking_list(conn: sqlite3.Connection, list_name: str, *, user_id: str = "local") -> int:
+def delete_ranking_list(conn: sqlite3.Connection, list_name: str, *, user_id: str) -> int:
     with conn:
         cur = conn.execute(
             "DELETE FROM custom_ranking WHERE user_id = ? AND list_name = ?",

@@ -218,12 +218,15 @@ def test_a_list_where_nothing_resolved_contributes_no_column(tmp_path):
     conn = connect(tmp_path / "app.db")
     migrate(conn)
     repo.replace_ranking_list(
-        conn, "all-misses", [{"rank": 1, "player_id": None, "source_name": "Nobody At All"}]
+        conn,
+        "all-misses",
+        [{"rank": 1, "player_id": None, "source_name": "Nobody At All"}],
+        user_id="local",
     )
     repo.replace_ranking_list(
-        conn, "one-hit", [{"rank": 1, "player_id": "4034", "source_name": "x"}]
+        conn, "one-hit", [{"rank": 1, "player_id": "4034", "source_name": "x"}], user_id="local"
     )
-    assert repo.custom_ranks_for_pool(conn) == {"one-hit": {"4034": 1.0}}
+    assert repo.custom_ranks_for_pool(conn, "local") == {"one-hit": {"4034": 1.0}}
     conn.close()
 
 

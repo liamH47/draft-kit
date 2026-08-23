@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from draftkit.auth.routes import CurrentUser
 from draftkit.db import repo
 from draftkit.models.league import (
     LeagueConfig,
@@ -42,14 +43,18 @@ class LeagueCreate(BaseModel):
 
 
 @router.post("")
-def create_league(request: Request, body: LeagueCreate) -> dict:
+def create_league(request: Request, body: LeagueCreate, user: CurrentUser) -> dict:
     if body.my_slot > body.num_teams:
         raise HTTPException(422, f"my_slot {body.my_slot} exceeds num_teams {body.num_teams}")
     conn = request.app.state.db
     league_id = repo.create_league(
-        conn, body.to_config(), scoring_preset=body.scoring, rounds=body.rounds
+        conn,
+        body.to_config(),
+        scoring_preset=body.scoring,
+        rounds=body.rounds,
+        user_id=user.user_id,
     )
-    league = repo.get_league(conn, league_id)
+    league = repo.get_league(conn, league_id, user.user_id)
     assert league is not None
     return league
 
@@ -62,11 +67,19 @@ class LeagueImport(BaseModel):
 
 
 @router.post("/import/espn")
-def import_espn_league(request: Request, body: LeagueImport) -> dict:
+def import_espn_league(request: Request, body: LeagueImport, user: CurrentUser) -> dict:
     """Read a league's real settings from ESPN rather than asking the user to
     retype them. Roster shape drives replacement level, so a transcription slip
     here mis-prices every player at that position."""
     settings = request.app.state.settings
+    if settings.auth == "google" and user.email != settings.owner_email:
+        # The import signs in to ESPN with the operator's own cookies, so it
+        # would read private leagues as the operator, whoever asked.
+        raise HTTPException(
+            403,
+            "ESPN import is limited to the site owner - it signs in to ESPN with "
+            "their account. Enter your league's settings by hand instead.",
+        )
     store = request.app.state.snapshot_store
     try:
         dataset, _ = store.get(
@@ -104,21 +117,25 @@ def import_espn_league(request: Request, body: LeagueImport) -> dict:
     )
     conn = request.app.state.db
     league_id = repo.create_league(
-        conn, draft.to_config(), scoring_preset=draft.scoring, rounds=draft.rounds
+        conn,
+        draft.to_config(),
+        scoring_preset=draft.scoring,
+        rounds=draft.rounds,
+        user_id=user.user_id,
     )
-    league = repo.get_league(conn, league_id)
+    league = repo.get_league(conn, league_id, user.user_id)
     assert league is not None
     return league
 
 
 @router.get("")
-def list_leagues(request: Request) -> list[dict]:
-    return repo.list_leagues(request.app.state.db)
+def list_leagues(request: Request, user: CurrentUser) -> list[dict]:
+    return repo.list_leagues(request.app.state.db, user.user_id)
 
 
 @router.get("/{league_id}")
-def get_league(request: Request, league_id: int) -> dict:
-    league = repo.get_league(request.app.state.db, league_id)
+def get_league(request: Request, league_id: int, user: CurrentUser) -> dict:
+    league = repo.get_league(request.app.state.db, league_id, user.user_id)
     if league is None:
         raise HTTPException(404, "league not found")
     return league

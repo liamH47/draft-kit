@@ -23,6 +23,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from draftkit.auth.routes import CurrentUser
 from draftkit.db import repo
 from draftkit.identity.ranklist import parse_ranking_text
 from draftkit.identity.resolver import Resolver
@@ -44,16 +45,18 @@ class RankingPaste(BaseModel):
     text: str = Field(min_length=1)
 
 
-def mirror_path(request: Request) -> Path:
-    return request.app.state.settings.data_dir / "rankings.json"
+def mirror_path(request: Request, user_id: str) -> Path:
+    """Per user, exactly as for tags: the local install keeps its file where
+    it has always been, and a signed-in user gets their own."""
+    return request.app.state.settings.user_dir(user_id) / "rankings.json"
 
 
-def write_mirror(request: Request) -> None:
+def write_mirror(request: Request, user_id: str) -> None:
     """Best effort, exactly as for tags: a mirror that will not write must
     never cost the user the list, which the database already holds."""
     try:
-        payload = repo.get_ranking_lists(request.app.state.db)
-        path = mirror_path(request)
+        payload = repo.get_ranking_lists(request.app.state.db, user_id)
+        path = mirror_path(request, user_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_suffix(".json.part")
         tmp.write_text(json.dumps(payload, indent=1, sort_keys=True), encoding="utf-8")
@@ -96,22 +99,22 @@ def _resolve(resolver: Resolver, name: str, position: str | None, team: str | No
 
 
 @router.get("")
-def list_rankings(request: Request) -> dict[str, list[dict]]:
+def list_rankings(request: Request, user: CurrentUser) -> dict[str, list[dict]]:
     """Name, size and match rate per list — enough for the UI to show that a
     list half failed to resolve, well before draft night."""
-    return {"lists": repo.ranking_list_summaries(request.app.state.db)}
+    return {"lists": repo.ranking_list_summaries(request.app.state.db, user.user_id)}
 
 
 @router.get("/{list_name}")
-def get_ranking(request: Request, list_name: str) -> dict:
-    rows = repo.get_ranking_list(request.app.state.db, list_name)
+def get_ranking(request: Request, list_name: str, user: CurrentUser) -> dict:
+    rows = repo.get_ranking_list(request.app.state.db, list_name, user_id=user.user_id)
     if not rows:
         raise HTTPException(404, f"no ranking list called {list_name!r}")
     return {"name": list_name, "rows": rows}
 
 
 @router.put("/{list_name}")
-def import_ranking(request: Request, list_name: str, body: RankingPaste) -> dict:
+def import_ranking(request: Request, list_name: str, body: RankingPaste, user: CurrentUser) -> dict:
     """Parse a pasted list, resolve what it names, and store the lot.
 
     Names that did not resolve are stored too, with no player id, and returned
@@ -140,8 +143,8 @@ def import_ranking(request: Request, list_name: str, body: RankingPaste) -> dict
                 "team": entry.team,
             }
         )
-    repo.replace_ranking_list(request.app.state.db, list_name, rows)
-    write_mirror(request)
+    repo.replace_ranking_list(request.app.state.db, list_name, rows, user_id=user.user_id)
+    write_mirror(request, user.user_id)
     # The pool caches per configuration, and this list is part of that
     # configuration — without this the board would show yesterday's consensus.
     clear_pool_cache()
@@ -154,20 +157,20 @@ def import_ranking(request: Request, list_name: str, body: RankingPaste) -> dict
 
 
 @router.delete("/{list_name}")
-def delete_ranking(request: Request, list_name: str) -> dict:
-    removed = repo.delete_ranking_list(request.app.state.db, list_name)
+def delete_ranking(request: Request, list_name: str, user: CurrentUser) -> dict:
+    removed = repo.delete_ranking_list(request.app.state.db, list_name, user_id=user.user_id)
     if not removed:
         raise HTTPException(404, f"no ranking list called {list_name!r}")
-    write_mirror(request)
+    write_mirror(request, user.user_id)
     clear_pool_cache()
     return {"name": list_name, "removed": removed}
 
 
 @router.post("/restore")
-def restore_from_mirror(request: Request) -> dict:
+def restore_from_mirror(request: Request, user: CurrentUser) -> dict:
     """Rebuild the tables from the JSON file — the recovery path for a database
     that was deleted, moved, or started from the wrong directory."""
-    path = mirror_path(request)
+    path = mirror_path(request, user.user_id)
     if not path.is_file():
         raise HTTPException(404, f"no ranking file at {path}")
     try:
@@ -178,6 +181,11 @@ def restore_from_mirror(request: Request) -> dict:
         raise HTTPException(422, f"{path} does not hold ranking lists")
     restored = 0
     for list_name, rows in payload.items():
-        restored += repo.replace_ranking_list(request.app.state.db, str(list_name), rows)
+        restored += repo.replace_ranking_list(
+            request.app.state.db, str(list_name), rows, user_id=user.user_id
+        )
     clear_pool_cache()
-    return {"restored": restored, "lists": repo.ranking_list_summaries(request.app.state.db)}
+    return {
+        "restored": restored,
+        "lists": repo.ranking_list_summaries(request.app.state.db, user.user_id),
+    }

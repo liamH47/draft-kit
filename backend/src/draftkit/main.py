@@ -1,9 +1,13 @@
+from functools import partial
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from draftkit.api import health, leagues, players, rankings, sessions, tags
+from draftkit.auth import google
+from draftkit.auth import routes as auth_routes
 from draftkit.config import Settings, get_settings
 from draftkit.db.connection import connect, migrate
 from draftkit.draft.events import EventBus
@@ -21,7 +25,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     migrate(app.state.db)
     app.state.events = EventBus()
 
-    for router in (health, players, leagues, rankings, sessions, tags):
+    if settings.auth == "google":
+        # The callback trades codes for identities through this seam; tests
+        # override it, exactly as they do the snapshot store.
+        app.state.token_exchanger = partial(
+            google.exchange_code,
+            client_id=settings.google_client_id or "",
+            client_secret=settings.google_client_secret or "",
+            redirect_uri=settings.redirect_uri,
+        )
+
+    for router in (auth_routes, health, players, leagues, rankings, sessions, tags):
         app.include_router(router.router)
 
     if settings.cors_origins:

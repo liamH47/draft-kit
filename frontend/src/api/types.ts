@@ -1,4 +1,11 @@
 export type Tag = 'target' | 'at_adp' | 'fade'
+
+// Who is signed in. auth "off" is the local install: a fixed local user and
+// no login flow at all.
+export type Me = {
+  auth: 'off' | 'google'
+  user: { user_id: string; email: string; name: string; picture: string } | null
+}
 export type ScoringPreset = 'standard' | 'half_ppr' | 'ppr'
 
 export type PoolPlayer = {
