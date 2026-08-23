@@ -34,6 +34,37 @@ function ConsensusCell({ player }: { player: PoolPlayer }) {
   )
 }
 
+// Sleeper's designations, split the way the score splits them: out for the
+// year, versus hurt now and maybe back for week one. Preseason PUP is the
+// common case and is a discount, not a write-off.
+const SEASON_ENDING = new Set(['IR', 'DNR', 'SUS', 'SUSPENDED'])
+const PROVISIONAL = new Set(['PUP', 'NA', 'COV', 'OUT'])
+
+/** The one flag that can cost you a season if it is missing. A projection
+ *  forecasts what he does IF he plays; this is whether he will. */
+function Injury({ player }: { player: PoolPlayer }) {
+  const status = player.injury_status
+  if (!status) return null
+  const key = status.toUpperCase()
+  const hurt = SEASON_ENDING.has(key) ? 'out' : PROVISIONAL.has(key) ? 'doubt' : 'watch'
+  const part = player.injury_body_part ? ` (${player.injury_body_part})` : ''
+  const gloss =
+    hurt === 'out'
+      ? 'out for the season'
+      : hurt === 'doubt'
+        ? 'hurt now, and may not open the season'
+        : 'week-to-week; not scored against him'
+  // The severe designations are already short. "Questionable" is not, and it
+  // is on a hundred players in August — spelled out, it would be the loudest
+  // thing on a board where it is the least important.
+  const label = hurt === 'watch' ? status[0].toUpperCase() : status.toUpperCase()
+  return (
+    <span className={`flag injury ${hurt}`} title={`${status}${part} — ${gloss}`}>
+      {label}
+    </span>
+  )
+}
+
 /** Two things worth spotting without reading a number: a player the room
  *  lets fall well past what he is worth, and one whose price is moving. */
 function Flags({ player }: { player: PoolPlayer }) {
@@ -47,6 +78,11 @@ function Flags({ player }: { player: PoolPlayer }) {
   const rising = shift <= -enough
   const falling = shift >= enough
   const across = `across ${markets} market${markets === 1 ? '' : 's'}`
+  // Buzz is relative to the hottest add in football, so a quarter of that is
+  // already a lot of rooms moving on one name in a day.
+  const buzz = player.buzz ?? 0
+  const buzzing = buzz >= 25
+  const shunned = buzz <= -25
   return (
     <>
       {sleeper && (
@@ -70,6 +106,22 @@ function Flags({ player }: { player: PoolPlayer }) {
           ▼
         </span>
       )}
+      {buzzing && (
+        <span
+          className="flag buzz"
+          title={`Sleeper rooms are adding him hard today (${buzz} on a scale where 100 is the most-added player in football). Waiver churn moves within hours; ADP takes days.`}
+        >
+          hot
+        </span>
+      )}
+      {shunned && (
+        <span
+          className="flag cold"
+          title={`Sleeper rooms are dropping him today. Something changed that the ADP has not caught up with.`}
+        >
+          cold
+        </span>
+      )}
     </>
   )
 }
@@ -83,7 +135,10 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
         {player.tier ?? '—'}
       </td>
       <td className="name-cell">
-        {player.name}
+        {/* The name is its own node so the badges beside it can never be read
+            as part of it — by a human scanning, or by anything parsing it. */}
+        <span className="name">{player.name}</span>
+        <Injury player={player} />
         <Flags player={player} />
         {player.note && <span className="note" title={player.note}> ✎</span>}
       </td>

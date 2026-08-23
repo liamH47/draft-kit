@@ -7,6 +7,10 @@ from draftkit.sources.base import RawPayload, RequestSpec
 FIXTURES = Path(__file__).parent / "fixtures"
 
 _URL_TO_FIXTURE = [
+    # Order matters throughout: matching is by substring, first hit wins, and
+    # the trending URLs contain the bare players URL.
+    ("trending/add", FIXTURES / "sleeper" / "trending_add.json", "application/json"),
+    ("trending/drop", FIXTURES / "sleeper" / "trending_drop.json", "application/json"),
     ("players/nfl", FIXTURES / "sleeper" / "players.json", "application/json"),
     ("projections/nfl", FIXTURES / "sleeper" / "projections.json", "application/json"),
     ("fantasyfootballcalculator", FIXTURES / "ffcalc" / "adp_half_ppr_12.json", "application/json"),
@@ -14,7 +18,7 @@ _URL_TO_FIXTURE = [
     ("db_playerids", FIXTURES / "dp" / "db_playerids.csv", "text/plain"),
     ("cbssports", FIXTURES / "cbs" / "rankings.json", "application/json"),
     ("pub-api-ro", FIXTURES / "yahoo" / "draft_analysis.json", "application/json"),
-    # Order matters: these URLs are more specific than the bare players URL.
+    ("myfantasyleague", FIXTURES / "mfl" / "adp.json", "application/json"),
     ("/leagues/", FIXTURES / "espn" / "league_settings.json", "application/json"),
     ("leaguedefaults", FIXTURES / "espn" / "projections.json", "application/json"),
     ("lm-api-reads", FIXTURES / "espn" / "players.json", "application/json"),

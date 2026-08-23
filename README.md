@@ -104,10 +104,24 @@ generated from the adapters themselves so it cannot drift. `make docs` refreshes
 provide — run that before a draft to catch a feed that changed shape.
 
 ADP data from [Fantasy Football Calculator](https://fantasyfootballcalculator.com).
-Player data and projections from the public [Sleeper](https://sleeper.com) API.
+Player data, projections and trending adds/drops from the public
+[Sleeper](https://sleeper.com) API.
 ADP and draft ranks from [ESPN Fantasy](https://fantasy.espn.com/).
+ADP and draft analysis from [Yahoo Fantasy Sports](https://football.fantasysports.yahoo.com/).
+Rankings from [CBS Sports Fantasy](https://www.cbssports.com/fantasy/football/).
+ADP data from [MyFantasyLeague](https://www.myfantasyleague.com/).
 Tier data by [Boris Chen](http://www.borischen.co/).
 Player ID crosswalk from [DynastyProcess](https://github.com/dynastyprocess/data).
+
+### Bringing your own rankings
+
+Anything we cannot fetch — a subscription list, a PDF cheat sheet, a spreadsheet
+somebody emailed you — can be pasted into the app from the cheat sheet page. It is
+parsed leniently (numbers, positions, teams and byes are all optional; page numbers and
+header rows are discarded), resolved against the player universe, and joins the
+published lists in the consensus rank. Names it could not match are reported rather
+than dropped, because a list that quietly arrives short is the failure you discover in
+round four.
 
 ### Rankings vs ADP
 

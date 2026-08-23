@@ -313,7 +313,12 @@ def test_a_player_no_market_prices_has_no_edge_over_the_market(tmp_path, fixture
                             k: v for k, v in row["stats"].items() if not k.startswith("adp_")
                         }
                 body = _json.dumps(payload).encode()
-            if fragment in ("fantasyfootballcalculator", "lm-api-reads", "pub-api-ro"):
+            if fragment in (
+                "fantasyfootballcalculator",
+                "lm-api-reads",
+                "pub-api-ro",
+                "myfantasyleague",
+            ):
                 raise ConnectionError("no market today")
             return RawPayload(body=body, content_type=content_type)
         raise AssertionError(f"no fixture for {spec.url}")

@@ -47,6 +47,20 @@ class PoolPlayer(BaseModel):
     # Places between where the market drafts him and where we rate him.
     # Positive means he lasts past his worth: the shape of a sleeper.
     market_edge: int | None = None
+    # Sleeper's own injury designation, carried through untouched: the hard
+    # ones (IR/PUP/Out/Suspended) mean he will not play, and the soft ones
+    # (Questionable/Doubtful) are shown without being scored.
+    injury_status: str | None = None
+    injury_body_part: str | None = None
+    # Where he sits on his own team's depth chart. 1 is the starter; a 2 in
+    # front of a high projection is the shape of a handcuff.
+    depth_chart_order: int | None = None
+    # Net waiver churn on Sleeper over the last day, scaled against the hottest
+    # player in the window: +100 is the most-added man in football, negative
+    # means the rooms are dropping him. Buzz reacts to news within hours, where
+    # ADP takes days, so it is the earliest warning that a price is about to
+    # move. Display only: it never touches the score.
+    buzz: int | None = None
     tier: int | None = None  # gap-based, computed
     tier_expert: int | None = None  # Boris Chen
     # Value over the replacement baselines for this league (see engine/baselines):

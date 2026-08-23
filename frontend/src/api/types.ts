@@ -25,6 +25,17 @@ export type PoolPlayer = {
   // What waiting costs: how much better he is than the next player at his
   // position likely to survive to your next pick. Only set during a draft.
   vona?: number | null
+  // Sleeper's own injury designation, verbatim ("IR", "PUP", "Questionable"),
+  // and what is hurt. A projection forecasts what he does IF he plays, so this
+  // is the column that stops the board leading with a man who is out.
+  injury_status: string | null
+  injury_body_part: string | null
+  // 1 is the starter. A 2 in front of a high projection is a handcuff.
+  depth_chart_order: number | null
+  // Net waiver churn on Sleeper over the last day, scaled against the hottest
+  // add in football: +100 is the most-added player, negative means the rooms
+  // are dropping him. It reacts within hours, where ADP takes days.
+  buzz: number | null
   rank: number
   pos_rank: number
   vorp: number
@@ -69,6 +80,21 @@ export type Pick = {
 export type OnTheClock = { overall_no: number; round_no: number; slot: number }
 
 export type SourceMeta = { fetched_at: string; stale: boolean }
+
+/** A ranking list the user pasted in themselves. */
+export type RankingList = {
+  list_name: string
+  total: number
+  matched: number
+  updated_at: string
+}
+
+export type RankingImport = {
+  name: string
+  total: number
+  matched: number
+  unmatched: string[]
+}
 
 export type DraftedPlayer = PoolPlayer & {
   overall_no: number

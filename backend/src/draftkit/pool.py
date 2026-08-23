@@ -6,6 +6,7 @@ when available. Any optional source failing (even with no snapshot) costs its
 columns, never the pool.
 """
 
+import json
 import time
 from dataclasses import dataclass
 from datetime import timedelta
@@ -17,7 +18,7 @@ from draftkit.engine.baselines import baselines
 from draftkit.engine.scoring import score
 from draftkit.engine.tiers import gap_tiers
 from draftkit.identity.resolver import Resolver
-from draftkit.models.league import LeagueConfig
+from draftkit.models.league import DEFAULT_ADP_WEIGHTS, LeagueConfig
 from draftkit.models.player import PoolPlayer
 from draftkit.snapshots.store import SnapshotMeta, SnapshotStore
 from draftkit.sources import (
@@ -27,8 +28,10 @@ from draftkit.sources import (
     espn_market,
     espn_projections,
     ffcalc_adp,
+    mfl_adp,
     sleeper_players,
     sleeper_projections,
+    sleeper_trending,
     yahoo_adp,
 )
 
@@ -74,6 +77,19 @@ def clear_pool_cache() -> None:
     _pool_cache.clear()
 
 
+def _custom_ranks_fingerprint(custom_ranks: dict[str, dict[str, float]] | None) -> str:
+    """A stable, cheap identity for the user's pasted lists.
+
+    Names and sizes alone would miss a re-paste of the same list at the same
+    length, which is exactly what correcting a cheat sheet looks like, so the
+    contents go in. The lists are a few hundred rows, and this runs once per
+    board read.
+    """
+    if not custom_ranks:
+        return ""
+    return json.dumps(custom_ranks, sort_keys=True)
+
+
 def build_pool_cached(
     store: SnapshotStore,
     league: LeagueConfig,
@@ -82,8 +98,19 @@ def build_pool_cached(
     scoring_preset: str = "half_ppr",
     overrides_path: Path | None = None,
     min_points: float = 1.0,
+    custom_ranks: dict[str, dict[str, float]] | None = None,
 ) -> PoolResult:
-    key = (league.model_dump_json(), season, scoring_preset, str(overrides_path), min_points)
+    # The user's own pasted lists change the pool (they feed consensus and the
+    # list-vs-market nudge), so they have to be part of the cache identity or a
+    # freshly imported cheat sheet would not show up until the cache lapsed.
+    key = (
+        league.model_dump_json(),
+        season,
+        scoring_preset,
+        str(overrides_path),
+        min_points,
+        _custom_ranks_fingerprint(custom_ranks),
+    )
     token = store.freshness_token()
     hit = _pool_cache.get(key)
     if hit is not None:
@@ -97,6 +124,7 @@ def build_pool_cached(
         scoring_preset=scoring_preset,
         overrides_path=overrides_path,
         min_points=min_points,
+        custom_ranks=custom_ranks,
     )
     # Re-fingerprint AFTER building: the build itself may have fetched and
     # written snapshots, and the cached token must describe the tree the
@@ -113,8 +141,10 @@ def build_pool(
     scoring_preset: str = "half_ppr",
     overrides_path: Path | None = None,
     min_points: float = 1.0,
+    custom_ranks: dict[str, dict[str, float]] | None = None,
 ) -> PoolResult:
     sources: dict[str, SnapshotMeta] = {}
+    custom_ranks = custom_ranks or {}
 
     players_ds, sources["sleeper_players"] = store.get(sleeper_players)
     proj_ds, sources["sleeper_projections"] = store.get(sleeper_projections, {"season": season})
@@ -251,6 +281,51 @@ def build_pool(
     except Exception:
         pass
 
+    # MyFantasyLeague: hand-run home leagues, which is the population this
+    # tool actually gets used in. mfl_id is the crosswalk's own primary key, so
+    # this is the one market that needs no name matching at all.
+    mfl_to_sleeper = {
+        row["mfl_id"]: row["sleeper_id"] for row in crosswalk_rows if row.get("mfl_id")
+    }
+    mfl_by_id: dict[str, dict[str, Any]] = {}
+    try:
+        mfl_params = {"format": scoring_preset, "year": season}
+        mfl_ds, sources["mfl_adp"] = store.get(mfl_adp, mfl_params)
+        raw_adp["mfl"] = [float(r["adp"]) for r in mfl_ds.rows if r.get("adp")]
+        for row in mfl_ds.rows:
+            sleeper_id = mfl_to_sleeper.get(row["mfl_id"])
+            if sleeper_id:
+                mfl_by_id[sleeper_id] = row
+    except Exception:
+        pass
+
+    adp_before["mfl"] = _previous(
+        mfl_adp,
+        {"format": scoring_preset, "year": season},
+        lambda row: mfl_to_sleeper.get(row["mfl_id"]),
+    )
+
+    # Waiver churn on Sleeper over the last day. This is the fastest signal the
+    # app holds — it moves within hours of news, where ADP takes days — so it
+    # is the first place a changed situation shows up. Never scored: adds
+    # follow news, and news is as often the man in front tearing an ACL as it
+    # is a breakout.
+    trend_by_id: dict[str, int] = {}
+    for kind, sign in (("add", 1), ("drop", -1)):
+        try:
+            trend_ds, sources[f"sleeper_trending_{kind}"] = store.get(
+                sleeper_trending, {"kind": kind}
+            )
+        except Exception:
+            continue
+        for row in trend_ds.rows:
+            trend_by_id[row["sleeper_id"]] = (
+                trend_by_id.get(row["sleeper_id"], 0) + sign * row["trend_count"]
+            )
+    # Scale against the hottest add in the window: the raw counts depend on how
+    # many people happened to be on Sleeper today, and mean nothing on their own.
+    trend_peak = max(trend_by_id.values(), default=0)
+
     # Yahoo pages are capped at 25 and ADP decays to nothing past the top
     # ~275; walk pages until one carries no ADP at all. A page that fails
     # mid-walk costs the tail, not the source.
@@ -296,6 +371,12 @@ def build_pool(
 
     adp_field = _PRESET_TO_SLEEPER_ADP.get(scoring_preset, "adp_half_ppr")
 
+    # A league saved before a market existed carries no weight for it, and
+    # blend_adp gives an unweighted source weight 1.0 — so MFL would have
+    # counted double against every other market in every league created before
+    # it was added. Defaults fill the gaps; the league's own settings win.
+    adp_weights = {**DEFAULT_ADP_WEIGHTS, **league.adp_weights}
+
     # Find each market's bucket-of-the-undrafted before using any of its
     # numbers, so a hundred players sharing one trailing value never read as a
     # hundred players who are "falling" to it.
@@ -318,6 +399,7 @@ def build_pool(
         eproj = espn_proj_by_id.get(player_id)
         cbs = cbs_by_id.get(player_id)
         yahoo = yahoo_by_id.get(player_id)
+        mfl = mfl_by_id.get(player_id)
 
         extra: dict[str, float | str | None] = {}
         points = score(proj["stats"], league.scoring)
@@ -343,6 +425,7 @@ def build_pool(
                 ("ffcalc", ffc.get("adp") if ffc else None),
                 ("espn", espn.get("adp") if espn else None),
                 ("yahoo", yahoo.get("adp") if yahoo else None),
+                ("mfl", mfl.get("adp") if mfl else None),
             )
             if value and float(value) < adp_ceiling.get(source, _MAX_MEANINGFUL_ADP)
         }
@@ -355,6 +438,12 @@ def build_pool(
             rank_by_source["cbs"] = float(cbs["rank"])
         if expert and expert.get("expert_rank"):
             rank_by_source["expert"] = float(expert["expert_rank"])
+        # The user's own pasted lists sit alongside the published ones. They
+        # are namespaced so a list called "espn" cannot quietly overwrite the
+        # feed of the same name.
+        for list_name, ranks in custom_ranks.items():
+            if player_id in ranks:
+                rank_by_source[f"custom:{list_name}"] = ranks[player_id]
 
         if expert:
             extra["expert.stdev"] = expert.get("expert_stdev")
@@ -366,7 +455,7 @@ def build_pool(
         if yahoo:
             extra["yahoo.average_cost"] = yahoo.get("average_cost")
             extra["yahoo.percent_drafted"] = yahoo.get("percent_drafted")
-        blended = blend_adp(adp_by_source, league.adp_weights)
+        blended = blend_adp(adp_by_source, adp_weights)
         # Movement, averaged over the markets that can see both readings. One
         # market moving is noise; the same player sliding in several is news,
         # so the count of agreeing markets travels with the number.
@@ -400,6 +489,14 @@ def build_pool(
                 consensus_rank=consensus_rank(rank_by_source),
                 adp_shift=adp_shift,
                 adp_shift_sources=adp_shift_sources,
+                injury_status=player.get("injury_status"),
+                injury_body_part=player.get("injury_body_part"),
+                depth_chart_order=player.get("depth_chart_order"),
+                buzz=(
+                    round(100 * trend_by_id[player_id] / trend_peak)
+                    if trend_peak > 0 and player_id in trend_by_id
+                    else None
+                ),
                 extra={k: v for k, v in extra.items() if v is not None},
                 tier_expert=tiers_by_id.get(player_id),
                 rank=0,

@@ -47,7 +47,7 @@ assert.match(await page.locator('.turn').innerText(), /6 picks until your turn/)
 await page.screenshot({ path: `${SHOTS}/2-board.png`, fullPage: true })
 
 // --- keyboard quick entry ------------------------------------------------
-const topName = await page.locator('table.pool tbody tr .name-cell').first().innerText()
+const topName = await page.locator('table.pool tbody tr .name-cell .name').first().innerText()
 await page.fill('.quick-entry input', topName.slice(0, 5))
 await page.waitForSelector('.matches li')
 await page.screenshot({ path: `${SHOTS}/3-quick-entry.png` })
@@ -56,16 +56,16 @@ await page.press('.quick-entry input', 'Enter')
 // The pool table renders a capped number of rows, so with a big live pool the
 // row count never changes — wait for the drafted NAME to leave the board.
 const nameGone = (name) =>
-  ![...document.querySelectorAll('table.pool tbody tr .name-cell')].some((c) =>
+  ![...document.querySelectorAll('table.pool tbody tr .name-cell .name')].some((c) =>
     c.textContent.startsWith(name),
   )
 await page.waitForFunction(nameGone, topName)
-const names = await page.locator('table.pool tbody tr .name-cell').allInnerTexts()
+const names = await page.locator('table.pool tbody tr .name-cell .name').allInnerTexts()
 assert.ok(!names.some((n) => n.startsWith(topName)), `${topName} should be off the board`)
 
 // --- my pick, via Shift+Enter -------------------------------------------
 async function draftTopPlayer(modifier = 'Enter') {
-  const name = await page.locator('table.pool tbody tr .name-cell').first().innerText()
+  const name = await page.locator('table.pool tbody tr .name-cell .name').first().innerText()
   await page.fill('.quick-entry input', name.slice(0, 5))
   await page.waitForSelector('.matches li')
   await page.press('.quick-entry input', modifier)
@@ -129,7 +129,7 @@ assert.ok(logText.includes('you'), 'your own pick should be marked in the log')
 await page.click('button:has-text("undo last pick")')
 await page.waitForFunction(
   (name) =>
-    [...document.querySelectorAll('table.pool tbody tr .name-cell')].some((c) =>
+    [...document.querySelectorAll('table.pool tbody tr .name-cell .name')].some((c) =>
       c.textContent.startsWith(name),
     ),
   mine,

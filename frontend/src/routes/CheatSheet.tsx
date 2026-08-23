@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
+import { RankingImport } from '../components/RankingImport'
 import { TagBackup } from '../components/TagBackup'
 import type { PoolPlayer, Tag } from '../api/types'
 import { PlayerTable } from '../components/PlayerTable'
@@ -62,6 +63,7 @@ export function CheatSheet() {
         recommendations during your draft, and they follow you into every league.
       </p>
       <TagBackup />
+      <RankingImport />
       <div className="sheet-controls">
         <PositionFilter value={position} onChange={setPosition} />
         <label className="toggle">
