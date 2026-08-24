@@ -154,7 +154,6 @@ def test_no_need_bonus_for_a_position_the_league_never_starts():
         league=league,
         my_counts={},
         current_pick=1,
-        picks_until_turn=3,
         current_round=15,
         total_rounds=15,
     )

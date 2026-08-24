@@ -166,3 +166,27 @@ def test_a_player_who_lasted_past_his_adp_reads_as_a_bargain(client, session):
     # The sign reads the way the column header promises it does.
     cheapest = min(priced, key=lambda p: p["adp"])
     assert (cheapest["adp_delta"] > 0) is (cheapest["adp"] < on_clock)
+
+
+def test_the_board_ships_one_tier_and_it_is_the_experts(client, session):
+    """The row's tier is the one the reader should trust: Boris Chen's where
+    he covers the position, the projection-gap tier only where he doesn't.
+    Shipping both confused everyone — gap tiers at the top of a steep curve
+    degenerate to one man per tier ("RB5, tier 5")."""
+    pool = {p["player_id"]: p for p in client.get("/api/players").json()["players"]}
+    rows = board(client, session)["available"]
+    expert_positions = {p["position"] for p in pool.values() if p["tier_expert"]}
+    assert expert_positions  # the fixture does carry Boris Chen tiers
+    for row in rows:
+        assert "tier_expert" not in row
+        raw = pool[row["player_id"]]
+        expected = raw["tier_expert"] if row["position"] in expert_positions else raw["tier"]
+        assert row["tier"] == expected
+
+
+def test_the_board_names_the_pick_the_wait_cost_is_measured_against(client, session):
+    """Slot 7 of 12: on the clock at 7, back on at 18. The card says
+    "waiting to pick N costs..." and N must be this number, not a guess."""
+    data = board(client, session)
+    assert data["my_next_pick"] == 18
+    assert all("value" in r and "vorp" not in r for r in data["recommendations"])

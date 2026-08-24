@@ -30,14 +30,13 @@ def rec(available, *, cfg=None, my_counts=None, current_round=1, total_rounds=15
         league=cfg or league(),
         my_counts=my_counts or {},
         current_pick=kw.pop("current_pick", 10),
-        picks_until_turn=kw.pop("picks_until_turn", 5),
         current_round=current_round,
         total_rounds=total_rounds,
         **kw,
     )
 
 
-FIELD = [cand("rb", "RB", 8), cand("k", "K", 20, tier=1), cand("dst", "DEF", 18, tier=1)]
+FIELD = [cand("rb", "RB", 8), cand("k", "K", 20), cand("dst", "DEF", 18)]
 
 
 def test_kicker_and_defense_sink_early_despite_better_vorp():
@@ -72,8 +71,8 @@ def test_window_boundary_is_exact():
 
 
 def test_no_tier_urgency_or_need_bonus_while_held_back():
-    """A lone kicker left in tier 1 must not manufacture urgency in round 2."""
-    out = rec([cand("k", "K", 5, tier=1)], current_round=2, picks_until_turn=10)
+    """A lone scarce kicker must not manufacture urgency in round 2."""
+    out = rec([cand("k", "K", 5, vona=30.0)], current_round=2)
     reasons = out[0].reasons
     assert not any("left in K tier" in r for r in reasons)
     assert not any("still need K starters" in r for r in reasons)

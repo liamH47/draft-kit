@@ -16,6 +16,17 @@ Both baselines come from the league's own roster settings, so a 10-team
 
 from draftkit.models.league import LeagueConfig, RosterSlots
 
+# How much of the ordering value comes from VOLS. Pure VORP sits in the
+# projection tail, where preseason numbers crater at some positions (RB53
+# projects ~74 points in a 12-team league) but not others (WR53 ~126) - a
+# projection artifact, not a scarcity fact, and at an even blend half of it
+# passed through as a flat ~28-point subsidy to every RB over every WR
+# (Derrick Henry, ADP 18, outranked Ja'Marr Chase, ADP 4). Weighting VOLS
+# keeps VORP's waiver-wire logic while anchoring value to players someone
+# actually starts. Within-position order is untouched by construction: a
+# baseline is a constant shift.
+VALUE_VOLS_WEIGHT = 0.75
+
 FLEX_ELIGIBLE = ("RB", "WR", "TE")
 # Bench spots are hoarded at the positions people handcuff and stash; nobody
 # carries a backup kicker or defense.
@@ -83,12 +94,8 @@ def baselines(
         out[position] = {
             "vols": vols,
             "vorp": vorp,
-            # What the recommendation score measures against. Pure VORP sits in
-            # the projection tail, where preseason numbers crater to near zero
-            # at some positions (deep RBs) but not others (deep WRs) — an
-            # artifact that once handed every RB a flat ~66-point premium over
-            # every WR. The midpoint keeps VORP's waiver-wire logic while VOLS
-            # anchors it to players someone actually starts.
-            "value": (vols + vorp) / 2,
+            # What the score measures against and the board orders by; see
+            # VALUE_VOLS_WEIGHT for why the blend leans VOLS.
+            "value": VALUE_VOLS_WEIGHT * vols + (1 - VALUE_VOLS_WEIGHT) * vorp,
         }
     return out

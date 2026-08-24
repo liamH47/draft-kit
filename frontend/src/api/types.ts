@@ -15,11 +15,17 @@ export type PoolPlayer = {
   team: string | null
   bye: number | null
   points: number
+  // Average Draft Position, blended across five markets.
   adp: number | null
+  // Picks he has lasted PAST his market price right now: + is a bargain,
+  // - means taking him here is early. Recomputed on every board read.
   adp_delta: number | null
   adp_stdev: number | null
+  // Position tier: Boris Chen's where he covers the position, the
+  // projection-gap tier where he doesn't. One field, already resolved.
   tier: number | null
-  tier_expert: number | null
+  // Average rank across public ranking lists (ESPN, CBS, Boris Chen, your
+  // pasted lists) - #1 is best. Display only; never feeds the score.
   consensus_rank: number | null
   // Places between where the room drafts him and where we rate him: positive
   // means he lasts past his worth.
@@ -47,6 +53,8 @@ export type PoolPlayer = {
   pos_rank: number
   vorp: number
   vols: number
+  // Season points above the position's baseline (a VOLS-leaning blend of
+  // "typical starter" and "waiver wire") - the number the board orders by.
   value: number
   tag: Tag | null
   note: string | null
@@ -57,7 +65,8 @@ export type Recommendation = {
   name: string
   position: string
   score: number
-  vorp: number
+  // The board's value number (the VOLS-leaning blend), NOT true VORP.
+  value: number
   vona: number | null
   reasons: string[]
 }
@@ -120,6 +129,8 @@ export type Board = {
   picks: Pick[]
   on_the_clock: OnTheClock | null
   picks_until_my_turn: number | null
+  /** The pick the wait-cost is measured against: "waiting to pick N costs...". */
+  my_next_pick: number | null
   picks_made: number
   total_picks: number
   sources: Record<string, SourceMeta>

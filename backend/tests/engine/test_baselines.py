@@ -1,4 +1,5 @@
 from draftkit.engine.baselines import (
+    VALUE_VOLS_WEIGHT,
     baselines,
     drafted_by_position,
     starters_by_position,
@@ -53,14 +54,34 @@ def test_baselines_pick_the_right_players():
     assert result["QB"]["vorp"] == 280  # no bench => same baseline
 
 
-def test_value_baseline_is_the_vols_vorp_midpoint():
+def test_value_baseline_leans_vols():
     """The score's baseline. Pure VORP sits in the projection tail, which
-    craters at some positions but not others — the midpoint keeps it honest."""
+    craters at some positions but not others — the blend leans VOLS to keep
+    the cross-position comparison honest."""
     cfg = league(qb=1, rb=0, wr=0, te=0, flex=0, k=0, dst=0, bench=2)
     qb_points = [400.0 - i * 10 for i in range(60)]
     result = baselines(cfg, {"QB": qb_points})
-    assert result["QB"]["value"] == (result["QB"]["vols"] + result["QB"]["vorp"]) / 2
-    assert result["QB"]["vorp"] < result["QB"]["value"] < result["QB"]["vols"]
+    vols, vorp = result["QB"]["vols"], result["QB"]["vorp"]
+    assert result["QB"]["value"] == VALUE_VOLS_WEIGHT * vols + (1 - VALUE_VOLS_WEIGHT) * vorp
+    assert vorp < result["QB"]["value"] < vols
+
+
+def test_a_cratered_tail_no_longer_buys_a_position_a_flat_subsidy():
+    """The bug the blend exists to damp: two positions identical at the
+    starter boundary, one whose deep tail craters (live RBs) and one whose
+    tail holds up (live WRs). The cratered tail must not hand its whole
+    position a large flat premium — at an even blend it was worth half the
+    tail gap; leaning VOLS caps the leak at (1 - weight) of it."""
+    cfg = league(qb=0, rb=1, wr=1, te=0, flex=0, k=0, dst=0, bench=2)
+    # 12 teams, 1 starter, bench split RB/WR evenly: VOLS index 12, VORP 24.
+    flat = [300.0 - i * 2 for i in range(60)]
+    cratered = flat[:13] + [50.0 - i for i in range(47)]
+    result = baselines(cfg, {"WR": flat, "RB": cratered})
+    assert result["RB"]["vols"] == result["WR"]["vols"]  # identical at the boundary
+    subsidy = result["WR"]["value"] - result["RB"]["value"]  # lower baseline = subsidy
+    tail_gap = result["WR"]["vorp"] - result["RB"]["vorp"]
+    assert subsidy == (1 - VALUE_VOLS_WEIGHT) * tail_gap
+    assert subsidy < tail_gap / 2  # strictly better than the old midpoint
 
 
 def test_superflex_raises_the_qb_baseline():

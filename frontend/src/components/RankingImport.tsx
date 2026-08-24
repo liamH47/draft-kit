@@ -57,7 +57,7 @@ export function RankingImport() {
                 type="button"
                 className="link"
                 onClick={() => remove.mutate(list.list_name)}
-                title="Remove this list and its column"
+                title="Remove this list; it stops feeding the consensus rank"
               >
                 remove
               </button>

@@ -10,17 +10,14 @@ type Props = {
   limit?: number
 }
 
-// 'value' is the server's order: value over replacement, the same measure the
-// recommendation score is built on — it tracks ADP roughly while keeping the
-// model's opinion. The others are one click away; nulls sort last.
-type SortKey = 'value' | 'vorp' | 'vols' | 'vona' | 'adp' | 'consensus_rank' | 'market_edge'
+// 'value' is the server's order: the same measure the recommendation score
+// is built on — it tracks ADP roughly while keeping the model's opinion.
+// The others are one click away; nulls sort last.
+type SortKey = 'value' | 'vona' | 'adp' | 'consensus_rank'
 
 const SORTS: Record<SortKey, (a: PoolPlayer, b: PoolPlayer) => number> = {
   value: (a, b) => a.rank - b.rank,
-  vols: (a, b) => b.vols - a.vols,
-  vorp: (a, b) => b.vorp - a.vorp,
   vona: (a, b) => (b.vona ?? -Infinity) - (a.vona ?? -Infinity),
-  market_edge: (a, b) => (b.market_edge ?? -Infinity) - (a.market_edge ?? -Infinity),
   adp: (a, b) => (a.adp ?? Infinity) - (b.adp ?? Infinity),
   consensus_rank: (a, b) => (a.consensus_rank ?? Infinity) - (b.consensus_rank ?? Infinity),
 }
@@ -28,6 +25,10 @@ const SORTS: Record<SortKey, (a: PoolPlayer, b: PoolPlayer) => number> = {
 export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
   const [sort, setSort] = useState<SortKey>('value')
   const sorted = useMemo(() => [...players].sort(SORTS[sort]), [players, sort])
+  // A tier border between groups only means something when the rows are one
+  // position in tier order — interleaved positions would draw noise.
+  const showTierBreaks =
+    sort === 'value' && sorted.length > 0 && sorted.every((p) => p.position === sorted[0].position)
 
   const sortable = (key: SortKey, label: string, title?: string) => (
     <th
@@ -44,7 +45,9 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
     <table className="pool">
       <thead>
         <tr>
-          <th>Tier</th>
+          <th title="Position tiers — Boris Chen's where he covers the position. A new tier starts where the projections drop off: the last man of a tier beats the first man of the next.">
+            Tier
+          </th>
           <th>Player</th>
           <th>Pos</th>
           <th>Tm</th>
@@ -52,27 +55,38 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
           {sortable(
             'value',
             'Value',
-            'Points above a replaceable player at the same position — the number this board is ranked on. It sits halfway between "better than the waiver wire" and "better than what your opponent starts", because either alone distorts a position whose projections crater at the bottom.',
+            'Season points above a baseline between a typical starter and the waiver wire at his position — the number this board is ordered by. Click sorts by it.',
           )}
           {sortable(
             'vona',
-            'Wait?',
-            'What waiting costs: points between him and the next player at his position likely to reach your next pick. Sort by this to find the picks that actually matter.',
+            'Wait cost',
+            'Points lost by waiting: him vs the best at his position likely to last to your next pick. Click sorts by it.',
           )}
-          {sortable('adp', 'ADP')}
-          <th title="Picks past ADP: + is a steal, − is a reach">Δ</th>
+          {sortable(
+            'adp',
+            'ADP',
+            'Average Draft Position across five markets. Green +N: still on the board N picks past his usual price. Red −N: taking him now is N picks early. Click sorts by it.',
+          )}
           {sortable(
             'consensus_rank',
-            'Cons',
-            'Consensus rank across ranking lists (ESPN weighted over expert) — click to sort',
+            'Consensus',
+            'Average rank across public ranking lists — #1 is best. ↑/↓ marks where this board disagrees hard: an edge or a data problem, you decide. Click sorts by it.',
           )}
           {onTag && <th>Tags</th>}
           {onDraft && <th />}
         </tr>
       </thead>
       <tbody>
-        {sorted.slice(0, limit).map((p) => (
-          <PlayerRow key={p.player_id} player={p} onDraft={onDraft} onTag={onTag} />
+        {sorted.slice(0, limit).map((p, i) => (
+          <PlayerRow
+            key={p.player_id}
+            player={p}
+            onDraft={onDraft}
+            onTag={onTag}
+            tierBreak={
+              showTierBreaks && i > 0 && p.tier !== null && p.tier !== sorted[i - 1].tier
+            }
+          />
         ))}
       </tbody>
     </table>

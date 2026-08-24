@@ -52,18 +52,6 @@ def build_board(
     on_clock = made + 1
     total = num_teams * rounds
     until_turn = picks_until_my_turn(num_teams, config.my_slot, made, rounds)
-    # On my own pick until_turn is 0, which would silence tier urgency at the
-    # only moment recommendations matter. Urgency there is about surviving to
-    # my NEXT turn, so hand recommend() that gap instead (None in the final
-    # round — there is no next turn). The UI keeps the raw 0: it means "you're
-    # on the clock".
-    rec_until = until_turn
-    if until_turn == 0:
-        my_round = round_and_slot(made + 1, num_teams)[0]
-        rec_until = (
-            gap_after(my_round, config.my_slot, num_teams) - 1 if my_round < rounds else None
-        )
-
     # The pick this advice is for, and the one after it — the gap between them
     # is what "waiting" actually costs, and it is the whole input to scarcity.
     my_pick = on_clock if until_turn is None else on_clock + until_turn
@@ -78,10 +66,11 @@ def build_board(
     my_players: list[dict[str, Any]] = []
     drafted_rows: dict[str, dict[str, Any]] = {}
 
-    # Urgency needs tiers that mean scarcity. Gap tiers on the flat live WR
-    # curve run 18-70 players wide (firing for everyone but WRs), while Boris
-    # Chen's expert tiers have sane sizes — so prefer expert tiers wherever he
-    # covers the position, gap tiers only where he doesn't (K, most DEF).
+    # The board ships ONE tier per player: Boris Chen's expert tier wherever
+    # he covers the position, the projection-gap tier only where he doesn't
+    # (K, most DEF). Gap tiers on a steep curve degenerate to one man per
+    # tier (RB5 read "tier 5") and on the flat WR curve run 18-70 players
+    # wide — showing them where a sane tier exists confused everyone.
     # Numbering must never mix within a position: an uncovered player at a
     # covered position gets no tier rather than a colliding gap tier.
     expert_positions = {p.position for p in pool_result.players if p.tier_expert}
@@ -92,6 +81,7 @@ def build_board(
         row = player.model_dump() | {
             "tag": tag_row.get("tag"),
             "note": tag_row.get("note"),
+            "tier": (player.tier_expert if player.position in expert_positions else player.tier),
             # Picks he has lasted PAST his market price: positive is a bargain
             # (still here after the room usually takes him), negative is a
             # reach. The column header promises that sign, and the score's ADP
@@ -99,6 +89,7 @@ def build_board(
             # board's biggest bargain was painted red as a reach.
             "adp_delta": (round(on_clock - player.adp, 1) if player.adp is not None else None),
         }
+        del row["tier_expert"]  # merged into tier above; two tiers confused everyone
         if player.player_id in drafted:
             drafted_rows[player.player_id] = row
             if player.player_id in mine:
@@ -118,7 +109,6 @@ def build_board(
                 # cross-position value.
                 vorp=player.value,
                 adp=player.adp,
-                tier=(player.tier_expert if player.position in expert_positions else player.tier),
                 tag=tag_row.get("tag"),
                 list_vs_market=player.list_vs_market,
                 injury_status=player.injury_status,
@@ -146,7 +136,6 @@ def build_board(
             league=config,
             my_counts=my_counts,
             current_pick=on_clock,
-            picks_until_turn=rec_until,
             current_round=round_and_slot(min(on_clock, total), num_teams)[0],
             total_rounds=rounds,
             autodraft_count=config.autodraft_count,
@@ -183,6 +172,9 @@ def build_board(
         "picks": picks,
         "on_the_clock": current,
         "picks_until_my_turn": until_turn,
+        # The pick the wait-cost is measured against — the card says
+        # "waiting to pick N costs ..." and N must be this, not a guess.
+        "my_next_pick": next_pick,
         "picks_made": made,
         "total_picks": total,
         "sources": {
