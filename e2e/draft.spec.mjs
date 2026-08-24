@@ -39,8 +39,10 @@ assert.ok(startingRows > 10, `expected a populated pool, saw ${startingRows}`)
 
 const recs = await page.locator('.recs > li').count()
 assert.equal(recs, 5, 'expected five recommendations')
-const firstReasons = await page.locator('.recs > li').first().locator('.reasons li').count()
-assert.ok(firstReasons > 0, 'recommendations must explain themselves')
+const firstLead = await page.locator('.recs > li').first().locator('.rec-lead').innerText()
+assert.match(firstLead, /pick \d+|keeps/, 'the card must lead with the wait-cost')
+const firstFoot = await page.locator('.recs > li').first().locator('.rec-foot').innerText()
+assert.match(firstFoot, /value [+-]?\d+ · score \d+/, 'value and score demote to the footer')
 
 await page.waitForSelector('.turn')
 assert.match(await page.locator('.turn').innerText(), /6 picks until your turn/)

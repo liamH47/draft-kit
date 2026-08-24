@@ -1,8 +1,10 @@
 import type { PoolPlayer } from '../api/types'
 
-/** Tier colour bands. Tier 1 is hottest; deep tiers fade to grey. */
+/** Tier colour bands. Tier 1 is hottest; tiers past the palette read as
+ *  nothing at all - clamping them to the last colour made tier 18 look
+ *  exactly as urgent as tier 5. */
 export function tierColor(tier: number | null): string {
-  if (tier === null) return 'var(--tier-none)'
+  if (tier === null || tier > 5) return 'var(--tier-none)'
   const palette = [
     'var(--tier-1)',
     'var(--tier-2)',
@@ -10,7 +12,7 @@ export function tierColor(tier: number | null): string {
     'var(--tier-4)',
     'var(--tier-5)',
   ]
-  return palette[Math.min(tier, palette.length) - 1]
+  return palette[tier - 1]
 }
 
 /** Positive delta = he's lasted past his ADP (a steal); negative = a reach. */

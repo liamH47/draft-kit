@@ -330,3 +330,18 @@ table.pool th { font-size: 0.68rem; }
   display: inline-block; padding: 0.45rem 1rem; border: 1px solid var(--text);
   border-radius: 4px; color: inherit; text-decoration: none; font-size: 0.95rem;
 }
+
+/* --- explainability pass: hover affordance, tier breaks, rec-card lead ---- */
+th[title], td.tier-cell[title] { cursor: help; }
+tr.tier-break td { border-top: 2px solid var(--line); }
+.adp-cell .badge { margin-left: 0.35rem; font-size: 0.75rem; }
+.rec-lead { margin: 0.25rem 0 0.1rem; font-size: 0.85rem; }
+.rec-lead.hot { color: var(--tier-1); font-weight: 600; }
+.rec-foot { margin: 0.1rem 0 0; font-size: 0.78rem; font-variant-numeric: tabular-nums; cursor: help; }
+.rec-head .mine { margin-left: auto; }
+.legend { margin: 0.4rem 0 0.6rem; font-size: 0.85rem; }
+.legend summary { cursor: pointer; opacity: 0.8; }
+.legend dl { margin: 0.4rem 0 0; }
+.legend dl > div { display: flex; gap: 0.5rem; padding: 0.12rem 0; }
+.legend dt { font-weight: 600; white-space: nowrap; min-width: 7.5rem; }
+.legend dd { margin: 0; opacity: 0.85; }

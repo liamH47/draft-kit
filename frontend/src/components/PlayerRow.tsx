@@ -11,6 +11,8 @@ type Props = {
   player: PoolPlayer
   onDraft?: (playerId: string, isMine: boolean | null, name?: string) => void
   onTag?: (playerId: string, tag: Tag | null) => void
+  /** First row of a new tier group (single-position view): draws the border. */
+  tierBreak?: boolean
 }
 
 // The model disagreeing hard with the room's consensus should be visible,
@@ -25,9 +27,10 @@ function ConsensusCell({ player }: { player: PoolPlayer }) {
     ? diff > 0
       ? `Model rank ${player.rank}, consensus ~${cons.toFixed(0)} — the model is much higher on him`
       : `Model rank ${player.rank}, consensus ~${cons.toFixed(0)} — the model is much lower on him`
-    : `Consensus rank across ranking lists`
+    : `Average rank across public ranking lists — #1 is best`
   return (
     <td className={disagree ? 'num consensus-flag' : 'num'} title={title}>
+      {'#'}
       {cons.toFixed(0)}
       {disagree && (diff > 0 ? ' ↑' : ' ↓')}
     </td>
@@ -126,13 +129,20 @@ function Flags({ player }: { player: PoolPlayer }) {
   )
 }
 
-export function PlayerRow({ player, onDraft, onTag }: Props) {
+export function PlayerRow({ player, onDraft, onTag, tierBreak }: Props) {
   const adp = adpLabel(player)
+  const rowClass =
+    [player.tag ? `tag-${player.tag}` : '', tierBreak ? 'tier-break' : '']
+      .filter(Boolean)
+      .join(' ') || undefined
   return (
-    <tr className={player.tag ? `tag-${player.tag}` : undefined}>
-      <td className="tier-cell">
+    <tr className={rowClass}>
+      <td
+        className="tier-cell"
+        title={`${player.position} tier ${player.tier ?? '—'} — Boris Chen's tiers (projection-gap tiers where he doesn't cover the position). The last man of a tier beats the first man of the next.`}
+      >
         <span className="tier-band" style={{ background: tierColor(player.tier) }} />
-        {player.tier ?? '—'}
+        {player.tier === null ? '—' : `T${player.tier}`}
       </td>
       <td className="name-cell">
         {/* The name is its own node so the badges beside it can never be read
@@ -152,7 +162,7 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
         className="num strong"
         title={`vs the waiver wire ${player.vorp.toFixed(0)} · vs a starting player ${player.vols.toFixed(0)}`}
       >
-        {player.value.toFixed(1)}
+        {player.value.toFixed(0)}
       </td>
       <td
         className={`num ${(player.vona ?? 0) >= 12 ? 'vona-hot' : ''}`}
@@ -160,9 +170,11 @@ export function PlayerRow({ player, onDraft, onTag }: Props) {
       >
         {player.vona === null || player.vona === undefined ? '—' : player.vona.toFixed(0)}
       </td>
-      <td className="num">{player.adp?.toFixed(1) ?? '—'}</td>
-      <td className={`num badge ${adp.kind}`} title="Picks he has lasted past ADP">
-        {adp.text}
+      <td className="num adp-cell" title="Picks past his usual price: green + is a bargain, red − is early">
+        {player.adp?.toFixed(1) ?? '—'}
+        {player.adp_delta !== null && adp.kind !== 'flat' && (
+          <span className={`badge ${adp.kind}`}>{adp.text}</span>
+        )}
       </td>
       <ConsensusCell player={player} />
       {onTag && (

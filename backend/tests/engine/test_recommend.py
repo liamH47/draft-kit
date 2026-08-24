@@ -18,13 +18,12 @@ def cand(pid, pos, vorp, **kw) -> Candidate:
     )
 
 
-def rec(available, *, my_counts=None, current_pick=10, picks_until_turn=5, **kw):
+def rec(available, *, my_counts=None, current_pick=10, **kw):
     return recommend(
         available,
         league=league(),
         my_counts=my_counts or {},
         current_pick=current_pick,
-        picks_until_turn=picks_until_turn,
         **kw,
     )
 
@@ -32,20 +31,22 @@ def rec(available, *, my_counts=None, current_pick=10, picks_until_turn=5, **kw)
 def test_autodraft_count_is_ignored_without_teams():
     """Guard the divide: a malformed league must not blow up the panel."""
     out = recommend(
-        [cand("a", "RB", 20, tier=1)],
+        [cand("a", "RB", 20)],
         league=league(),
         my_counts={},
         current_pick=1,
-        picks_until_turn=None,
         autodraft_count=4,
     )
     assert out[0].player_id == "a"
 
 
-def test_ranks_by_vorp_when_all_else_equal():
+def test_ranks_by_value_when_all_else_equal():
     out = rec([cand("a", "RB", 10), cand("b", "RB", 40), cand("c", "RB", 25)])
     assert [r.player_id for r in out] == ["b", "c", "a"]
-    assert out[0].reasons[0].startswith("+40 pts over a replacement RB")
+    # The number itself ships as a field the card's footer renders — it is
+    # NOT a reason bullet, where it discriminated between nobody.
+    assert out[0].value == 40.0
+    assert not any("replacement" in r for r in out[0].reasons)
 
 
 def test_limit_is_respected():
@@ -122,12 +123,11 @@ def test_a_position_about_to_fall_off_is_urgent():
     steep = rec([cand("a", "RB", 40, vona=30.0)])[0]
     flat = rec([cand("a", "RB", 40, vona=1.0)])[0]
     assert steep.score > flat.score
-    assert any("waiting costs" in r for r in steep.reasons)
-
-
-def test_a_position_that_keeps_says_so():
-    out = rec([cand("a", "RB", 40, vona=1.0)], picks_until_turn=10)[0]
-    assert any("RB keeps" in r for r in out.reasons)
+    # The wait-cost is the card's LEAD, rendered from this field; it must
+    # never be duplicated into (and buried among) the reason bullets.
+    assert steep.vona == 30.0
+    assert not any("waiting costs" in r for r in steep.reasons)
+    assert not any("keeps" in r for r in flat.reasons)
 
 
 def test_scarcity_is_absent_when_it_cannot_be_measured():
@@ -252,13 +252,13 @@ def test_autodrafters_damp_scarcity():
     """Half the room on autopilot cannot start a run, so a position drains
     more slowly even though the pick count is unchanged."""
     field = [cand("a", "RB", 20, vona=20.0)]
-    humans = rec(field, picks_until_turn=8, autodraft_count=0)[0]
-    robots = rec(field, picks_until_turn=8, autodraft_count=6)[0]
+    humans = rec(field, autodraft_count=0)[0]
+    robots = rec(field, autodraft_count=6)[0]
     assert robots.score < humans.score
 
 
 def test_a_fully_automated_room_creates_no_urgency():
-    out = rec([cand("a", "RB", 20, vona=20.0)], picks_until_turn=8, autodraft_count=12)[0]
+    out = rec([cand("a", "RB", 20, vona=20.0)], autodraft_count=12)[0]
     assert not any("waiting costs" in r for r in out.reasons)
 
 
@@ -289,7 +289,6 @@ def test_a_player_who_will_not_play_falls_behind_an_identical_healthy_one(status
         league=league(),
         my_counts={},
         current_pick=1,
-        picks_until_turn=10,
     )
     assert [r.player_id for r in out] == ["fit", "hurt"]
     hurt = next(r for r in out if r.player_id == "hurt")
@@ -304,7 +303,6 @@ def test_the_designation_is_read_however_it_is_cased():
         league=league(),
         my_counts={},
         current_pick=1,
-        picks_until_turn=10,
     )
     assert out[0].player_id == "fit"
 
@@ -318,7 +316,6 @@ def test_a_soft_designation_does_not_move_the_score(status):
         league=league(),
         my_counts={},
         current_pick=1,
-        picks_until_turn=10,
     )
     assert {r.score for r in out} == {out[0].score}
 
@@ -340,7 +337,6 @@ def test_a_season_ending_designation_costs_more_than_a_provisional_one():
         league=league(),
         my_counts={},
         current_pick=1,
-        picks_until_turn=10,
     )
     assert [r.player_id for r in out] == ["fit", "pup", "ir"]
     by_id = {r.player_id: r for r in out}

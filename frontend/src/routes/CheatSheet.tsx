@@ -75,6 +75,53 @@ export function CheatSheet() {
           only tagged
         </label>
       </div>
+      <details className="legend">
+        <summary>What the columns mean</summary>
+        <dl>
+          <div>
+            <dt>Value</dt>
+            <dd>
+              season points above a baseline between a typical starter and the waiver wire at his
+              position — the default order.
+            </dd>
+          </div>
+          <div>
+            <dt>Wait cost</dt>
+            <dd>
+              points lost by waiting: him vs the best at his position likely to last to your next
+              pick.
+            </dd>
+          </div>
+          <div>
+            <dt>ADP ±N</dt>
+            <dd>
+              average draft position across five markets; green +N = still here N picks past his
+              price, red −N = N picks early.
+            </dd>
+          </div>
+          <div>
+            <dt>Consensus #N</dt>
+            <dd>
+              average rank across public ranking lists; ↑/↓ = this board disagrees hard with
+              them.
+            </dd>
+          </div>
+          <div>
+            <dt>Tier</dt>
+            <dd>
+              position tiers, Boris Chen's wherever he covers the position; the last man of a tier
+              beats the first man of the next.
+            </dd>
+          </div>
+          <div>
+            <dt>Badges</dt>
+            <dd>
+              VALUE: lasts well past his worth · ▲▼: price moving · HOT/COLD: Sleeper adds and
+              drops today · injury always reads first.
+            </dd>
+          </div>
+        </dl>
+      </details>
       <PlayerTable
         players={players}
         onTag={(playerId, value) => tag.mutate({ playerId, value })}

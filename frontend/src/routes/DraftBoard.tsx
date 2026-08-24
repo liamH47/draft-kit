@@ -156,7 +156,11 @@ export function DraftBoard() {
           </ol>
 
           <h2>Recommended</h2>
-          <RecommendationPanel recommendations={board.recommendations} onDraft={onDraft} />
+          <RecommendationPanel
+            recommendations={board.recommendations}
+            nextPick={board.my_next_pick}
+            onDraft={onDraft}
+          />
           <h2>Your roster</h2>
           <RosterGrid board={board} />
         </aside>

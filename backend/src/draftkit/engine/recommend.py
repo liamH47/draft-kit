@@ -85,7 +85,6 @@ class Candidate:
     points: float
     vorp: float
     adp: float | None = None
-    tier: int | None = None
     tag: str | None = None
     # Positive when ranking lists sit above the market on him: list-followers
     # (autodrafters, anyone drafting off the platform's default order) reach for
@@ -105,7 +104,9 @@ class Recommendation:
     name: str
     position: str
     score: float
-    vorp: float
+    # The board's value number (the VOLS-leaning blend), NOT true VORP -
+    # QuickEntry shows real VORP under that name, so this one must not.
+    value: float
     vona: float | None = None
     reasons: list[str] = field(default_factory=list)
 
@@ -158,7 +159,6 @@ def recommend(
     league,
     my_counts: dict[str, int],
     current_pick: int,
-    picks_until_turn: int | None,
     current_round: int = 1,
     total_rounds: int = 15,
     autodraft_count: int = 0,
@@ -173,7 +173,6 @@ def recommend(
     human_share = 1.0
     if autodraft_count and league.num_teams:
         human_share = max(0.0, (league.num_teams - autodraft_count) / league.num_teams)
-    human_until_turn = None if picks_until_turn is None else round(picks_until_turn * human_share)
     rounds_left = total_rounds - current_round + 1
     # Inside the tail of the draft, kickers and defenses score normally.
     in_late_window = rounds_left <= league.late_round_window
@@ -239,9 +238,6 @@ def recommend(
                     f"wait on {c.position} — round {first_late_round} or later is the spot"
                 )
 
-        if c.vorp > 0:
-            reasons.append(f"{c.vorp:+.0f} pts over a replacement {c.position}")
-
         need = 0.0 if held_back else _need_factor(c.position, my_counts, starters)
         if need > 0:
             bonus = NEED_BONUS * need
@@ -273,20 +269,12 @@ def recommend(
         # What waiting costs. Autodrafters walk a list and never start a run,
         # so a room that is half robots drains a position more slowly — the
         # same human_share that used to damp tier urgency damps this.
+        # The wait-cost itself is the card's lead line, rendered from the
+        # structured vona field - duplicating it as a reason string is what
+        # used to bury it in the bullet list.
         if c.vona is not None and not held_back:
             urgency = max(0.0, min(SCARCITY_CAP, c.vona * SCARCITY_PER_POINT)) * human_share
             score += urgency
-            # A room of robots never starts a run, so scarcity buys nothing —
-            # and must not claim to. The reason follows the score, not the gap.
-            if c.vona >= 12 and urgency > 0:
-                reasons.append(
-                    f"waiting costs ~{c.vona:.0f} pts — the next {c.position} likely "
-                    "to reach your turn is well behind him"
-                )
-            elif c.vona <= 3 and human_until_turn:
-                reasons.append(
-                    f"{c.position} keeps — someone about as good should last to your next pick"
-                )
 
         # Smallest term in the model, and the only one about other people.
         if c.list_vs_market is not None and not held_back:
@@ -321,7 +309,7 @@ def recommend(
                 name=c.name,
                 position=c.position,
                 score=round(score, 1),
-                vorp=round(c.vorp, 1),
+                value=round(c.vorp, 1),
                 vona=None if c.vona is None else round(c.vona, 1),
                 reasons=reasons,
             )
