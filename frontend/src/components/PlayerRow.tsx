@@ -1,5 +1,5 @@
 import type { PoolPlayer, Tag } from '../api/types'
-import { adpLabel, tierColor } from '../lib/format'
+import { adpLabel } from '../lib/format'
 
 const TAGS: { value: Tag; label: string; title: string }[] = [
   { value: 'target', label: 'T', title: 'Target — take him ahead of ADP' },
@@ -137,13 +137,6 @@ export function PlayerRow({ player, onDraft, onTag, tierBreak }: Props) {
       .join(' ') || undefined
   return (
     <tr className={rowClass}>
-      <td
-        className="tier-cell"
-        title={`Tier ${player.tier ?? '—'} — Boris Chen's tiers, numbered on his overall board (projection-gap tiers where he doesn't cover the position). The last man of a tier beats the first man of the next.`}
-      >
-        <span className="tier-band" style={{ background: tierColor(player.tier) }} />
-        {player.tier === null ? '—' : `T${player.tier}`}
-      </td>
       <td className="name-cell">
         {/* The name is its own node so the badges beside it can never be read
             as part of it — by a human scanning, or by anything parsing it. */}

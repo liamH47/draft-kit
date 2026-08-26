@@ -108,10 +108,10 @@ export function CheatSheet() {
             </dd>
           </div>
           <div>
-            <dt>Tier</dt>
+            <dt>Tier breaks</dt>
             <dd>
-              Boris Chen's tiers wherever he covers the position, numbered on his overall board;
-              the last man of a tier beats the first man of the next.
+              in a single-position view, a border marks where one of Boris Chen's tiers ends —
+              the last man above the line beats the first man below it.
             </dd>
           </div>
           <div>
