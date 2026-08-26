@@ -139,7 +139,7 @@ export function PlayerRow({ player, onDraft, onTag, tierBreak }: Props) {
     <tr className={rowClass}>
       <td
         className="tier-cell"
-        title={`${player.position} tier ${player.tier ?? '—'} — Boris Chen's tiers (projection-gap tiers where he doesn't cover the position). The last man of a tier beats the first man of the next.`}
+        title={`Tier ${player.tier ?? '—'} — Boris Chen's tiers, numbered on his overall board (projection-gap tiers where he doesn't cover the position). The last man of a tier beats the first man of the next.`}
       >
         <span className="tier-band" style={{ background: tierColor(player.tier) }} />
         {player.tier === null ? '—' : `T${player.tier}`}

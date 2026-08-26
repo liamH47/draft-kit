@@ -137,6 +137,14 @@ await page.waitForFunction(
   mine,
 )
 
+// --- strategy guide (static reference page; nothing else exercises the route) ---
+await page.goto(`${BASE}/strategies`)
+await page.waitForSelector('.guide h1')
+assert.match(await page.locator('.guide h1').innerText(), /Draft strategies/)
+const strategySections = await page.locator('.guide section[id]').count()
+assert.ok(strategySections >= 11, `expected the full catalogue, saw ${strategySections} sections`)
+await page.screenshot({ path: `${SHOTS}/6-strategies.png` })
+
 assert.deepEqual(errors, [], `console/page errors: ${errors.join(' | ')}`)
-console.log('E2E PASSED — pool, recommendations, quick entry, tagging, roster, undo')
+console.log('E2E PASSED — pool, recommendations, quick entry, tagging, roster, undo, strategies')
 await browser.close()

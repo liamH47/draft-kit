@@ -55,6 +55,7 @@ export function CheatSheet() {
     <main className="wrap wide">
       <header className="sheet-head">
         <h1>Cheat sheet</h1>
+        <Link to="/strategies">strategy guide</Link>
         <Link to={`/draft/${sessionId}`}>go to draft board</Link>
       </header>
       <p className="muted">
@@ -109,8 +110,8 @@ export function CheatSheet() {
           <div>
             <dt>Tier</dt>
             <dd>
-              position tiers, Boris Chen's wherever he covers the position; the last man of a tier
-              beats the first man of the next.
+              Boris Chen's tiers wherever he covers the position, numbered on his overall board;
+              the last man of a tier beats the first man of the next.
             </dd>
           </div>
           <div>
