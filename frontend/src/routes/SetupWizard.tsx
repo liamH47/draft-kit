@@ -87,7 +87,10 @@ export function SetupWizard() {
     <main className="wrap">
       <h1>draftkit</h1>
       <UserChip />
-      <p className="muted">Set up a league, then start a draft.</p>
+      <p className="muted">
+        Set up a league, then start a draft. New to draft plans? Read the{' '}
+        <Link to="/strategies">strategy guide</Link>.
+      </p>
 
       <section className="import">
         <h2>Import an ESPN league</h2>

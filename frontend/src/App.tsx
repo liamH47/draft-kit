@@ -6,6 +6,7 @@ import { CheatSheet } from './routes/CheatSheet'
 import { DraftBoard } from './routes/DraftBoard'
 import { Login } from './routes/Login'
 import { SetupWizard } from './routes/SetupWizard'
+import { StrategyGuide } from './routes/StrategyGuide'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/draft/:sessionId" element={<DraftBoard />} />
           <Route path="/cheatsheet/:leagueId" element={<CheatSheet />} />
+          <Route path="/strategies" element={<StrategyGuide />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

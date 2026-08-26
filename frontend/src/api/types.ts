@@ -21,7 +21,8 @@ export type PoolPlayer = {
   // - means taking him here is early. Recomputed on every board read.
   adp_delta: number | null
   adp_stdev: number | null
-  // Position tier: Boris Chen's where he covers the position, the
+  // Boris Chen's tier where he covers the position (numbered on his OVERALL
+  // board — a position's top tier may not read T1), the per-position
   // projection-gap tier where he doesn't. One field, already resolved.
   tier: number | null
   // Average rank across public ranking lists (ESPN, CBS, Boris Chen, your

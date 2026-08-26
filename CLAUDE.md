@@ -13,6 +13,7 @@ of the project, not spun up ad hoc:
 - `draft-reliability` — what breaks mid-draft; the sceptic about new features
 - `draft-data-sync` — source adapters, joins, and platform sync
 - `league-format-specialist` — roster shape, flex/superflex, league size, autodrafters
+- `draft-strategy-educator` — the strategy guide: what drafters actually run, described faithfully
 
 **When new specialist expertise is needed, save it here rather than defining it inline.**
 An agent definition accumulates project knowledge in its prompt, gets versioned with the
