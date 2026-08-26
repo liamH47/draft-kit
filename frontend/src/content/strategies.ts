@@ -96,7 +96,7 @@ export const STRATEGIES: Strategy[] = [
       'Public tiers are shared knowledge — in a sharp room everyone sees the same cliff coming, and it arrives before your pick.',
     ],
     inDraftkit:
-      "The Tier column shows Boris Chen's tiers wherever he covers a position (numbered on his overall board, so a position's top tier may not read T1), and filtering to a single position draws a border at every tier break, so a dying tier is visible at a glance.",
+      "Filter to a single position and a border marks where each of Boris Chen's tiers ends, so a dying tier is visible at a glance — and the Wait cost column prices the same cliff in points.",
     provenance:
       'Tier drafting is decades old as a habit; Boris Chen, then a data scientist at the New York Times, put it on rails around 2013 by clustering expert consensus ranks with a Gaussian mixture model. His charts made it a mainstream method, and his tiers are the ones this board shows.',
   },
@@ -129,7 +129,7 @@ export const STRATEGIES: Strategy[] = [
       'The payoff arrives late by design; the roster often plays worst in September, which tests nerves in head-to-head leagues.',
     ],
     inDraftkit:
-      'Build it on the cheat sheet: F-fade the early RBs you refuse to pay for and T-target your round-6-and-later RB list, then run the front half through the WR filter and the Tier column. On draft night the hot flag shows which cheap backfields the Sleeper market is already chasing.',
+      'Build it on the cheat sheet: F-fade the early RBs you refuse to pay for and T-target your round-6-and-later RB list, then run the front half through the WR filter, where the tier-break borders mark the cliffs. On draft night the hot flag shows which cheap backfields the Sleeper market is already chasing.',
     provenance:
       'Shawn Siegele coined it at RotoViz in 2013 — "Zero RB, Antifragility, and the Myth of Value-Based Drafting" — borrowing Taleb\'s antifragility. It was the sharp play of the mid-2010s, the market adjusted, and it now cycles with RB pricing: always a minority play, never gone.',
   },
@@ -161,7 +161,7 @@ export const STRATEGIES: Strategy[] = [
       'It needs the board to cooperate in round 1 — if the true workhorses are gone at your pick, "hero" quietly becomes "reach".',
     ],
     inDraftkit:
-      'T-target the few backs you would accept as the hero and F-fade the dead-zone RBs behind them. After round 1, the RB Tier column and Wait cost show exactly what skipping the middle is costing — the number this strategy bets stays low.',
+      "T-target the few backs you would accept as the hero and F-fade the dead-zone RBs behind them. After round 1, the RB filter's tier-break borders and the Wait cost column show exactly what skipping the middle is costing — the number this strategy bets stays low.",
     provenance:
       'No single coiner: it hardened out of the Zero RB debate in the late 2010s, largely in best-ball rooms, as the compromise for drafters who bought the dead-zone evidence but not the full punt. Under either name it is now arguably the most-run named RB plan in home leagues.',
   },
@@ -193,7 +193,7 @@ export const STRATEGIES: Strategy[] = [
       'It was built in the workhorse era; committee backfields mean the "scarce volume" being cornered is smaller than it used to be.',
     ],
     inDraftkit:
-      "Filter to RB and play the Tier column's tier breaks — Robust RB is drafted off the RB cliffs. Once two backs are banked, the value flag and green ADP +N badges point at the receivers the room is letting slide.",
+      'Filter to RB and play the tier-break borders — Robust RB is drafted off the RB cliffs. Once two backs are banked, the value flag and green ADP +N badges point at the receivers the room is letting slide.',
     provenance:
       'The oldest plan on this page — in the 2000s workhorse era it was simply called drafting. The name is a retronym coined in the mid-2010s, once Zero RB needed a counterpart to argue with, and it returns to fashion every year the early RBs stay healthy.',
   },
@@ -226,7 +226,7 @@ export const STRATEGIES: Strategy[] = [
       "Recorded dissent from the board's own numbers: on current projections the thesis only holds below the very top — QB1 to QB10 spans ~70 points, more than the same picks buy at WR, while QB3 to QB15 spans ~33 — so waiting is cheap once the top one or two QBs are gone, not before.",
     ],
     inDraftkit:
-      'Filter to QB and watch the Tier column — the whole plan is not being last out of the middle tier. A QB Wait cost that stays low all night is the strategy working; when it spikes, the room is starting the run.',
+      'Filter to QB and watch the tier-break borders — the whole plan is not being last out of the middle tier. A QB Wait cost that stays low all night is the strategy working; when it spikes, the room is starting the run.',
     provenance:
       'JJ Zachariason made the case book-length in "The Late Round Quarterback" (2012) and spent the next decade backing it with data at numberFire. It went from contrarian to near-consensus in 1-QB leagues — which is much of why superflex formats caught on as the counter.',
   },
@@ -257,7 +257,7 @@ export const STRATEGIES: Strategy[] = [
       'The middle is not always wrong: some years the breakout lives in the TE4-TE8 band, and the barbell has you fading precisely the players who return the most.',
     ],
     inDraftkit:
-      'Filter to TE and the Tier column makes the argument itself — the top tier is a couple of names, then the shelf. T-tag your elite target or F-fade the middle tiers on the cheat sheet, and let the TE Wait cost confirm what waiting actually costs.',
+      'Filter to TE and the tier-break borders make the argument themselves — the top group is a couple of names, then the shelf. T-tag your elite target or F-fade the middle tiers on the cheat sheet, and let the TE Wait cost confirm what waiting actually costs.',
     provenance:
       'Nobody owns this one; it is the community\'s accumulated read of the TE scoring curve. The punt pole is ancient, the elite pole hardened in the Gronkowski years, and "barbell" is the best-ball era\'s name for holding both at once. Most drafters live on one pole without naming it.',
   },

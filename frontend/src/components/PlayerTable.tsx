@@ -45,9 +45,6 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
     <table className="pool">
       <thead>
         <tr>
-          <th title="Boris Chen's tiers, numbered on his overall board (projection-gap tiers where he doesn't cover the position). A new tier starts where the projections drop off: the last man of a tier beats the first man of the next.">
-            Tier
-          </th>
           <th>Player</th>
           <th>Pos</th>
           <th>Tm</th>

@@ -1,20 +1,5 @@
 import type { PoolPlayer } from '../api/types'
 
-/** Tier colour bands. Tier 1 is hottest; tiers past the palette read as
- *  nothing at all - clamping them to the last colour made tier 18 look
- *  exactly as urgent as tier 5. */
-export function tierColor(tier: number | null): string {
-  if (tier === null || tier > 5) return 'var(--tier-none)'
-  const palette = [
-    'var(--tier-1)',
-    'var(--tier-2)',
-    'var(--tier-3)',
-    'var(--tier-4)',
-    'var(--tier-5)',
-  ]
-  return palette[tier - 1]
-}
-
 /** Positive delta = he's lasted past his ADP (a steal); negative = a reach. */
 export function adpLabel(player: PoolPlayer): { text: string; kind: 'steal' | 'reach' | 'flat' } {
   if (player.adp_delta === null) return { text: '—', kind: 'flat' }

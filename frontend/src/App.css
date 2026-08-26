@@ -140,8 +140,6 @@ table.pool td { padding: 0.28rem 0.4rem; border-top: 1px solid var(--line); }
 table.pool td, table.pool th { text-align: left; }
 table.pool .num { text-align: right; font-variant-numeric: tabular-nums; }
 table.pool .strong { font-weight: 700; }
-.tier-cell { display: flex; align-items: center; gap: 0.4rem; }
-.tier-band { display: inline-block; width: 4px; height: 1.1em; border-radius: 2px; }
 .badge.steal { color: var(--steal); font-weight: 700; }
 .badge.reach { color: var(--reach); }
 tr.tag-target { background: rgba(46, 158, 79, 0.08); }
@@ -332,7 +330,7 @@ table.pool th { font-size: 0.68rem; }
 }
 
 /* --- explainability pass: hover affordance, tier breaks, rec-card lead ---- */
-th[title], td.tier-cell[title] { cursor: help; }
+th[title] { cursor: help; }
 tr.tier-break td { border-top: 2px solid var(--line); }
 .adp-cell .badge { margin-left: 0.35rem; font-size: 0.75rem; }
 .rec-lead { margin: 0.25rem 0 0.1rem; font-size: 0.85rem; }
