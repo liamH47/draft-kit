@@ -39,9 +39,11 @@ export function QuickEntry({ players, drafted = [], onDraft, onTag, onCorrect }:
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Plain Enter sends null so the server decides ownership from whose slot is
-  // on the clock — otherwise muscle memory files your own pick as a rival's.
-  // Shift+Enter is the explicit override for entering your pick out of turn.
+  // Plain Enter sends null, and the server fills in ownership from whose slot
+  // is on the clock (ingest.record_pick) — so a pick landing on your seat is
+  // recorded as yours with no extra keystroke. That is the normal path.
+  // Shift+Enter only exists to force ownership when you are entering your own
+  // pick OUT of turn, which the clock cannot infer.
   function commit(hit: SearchHit | undefined, isMine: boolean | null) {
     if (!hit) return
     if (hit.gone) {
@@ -69,7 +71,7 @@ export function QuickEntry({ players, drafted = [], onDraft, onTag, onCorrect }:
         ref={inputRef}
         autoFocus
         value={query}
-        placeholder="Type a name — Enter = taken, Shift+Enter = my pick"
+        placeholder="Type a name, press Enter — your slot is filed as yours automatically"
         onChange={(e) => {
           setQuery(e.target.value)
           setHighlight(0) // a new query means a new best match

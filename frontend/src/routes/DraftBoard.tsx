@@ -121,8 +121,9 @@ export function DraftBoard() {
         onCorrect={(overallNo, playerId, name) => correct.mutate({ overallNo, playerId, name })}
       />
       <p className="entry-hint">
-        Enter marks a player taken · Shift+Enter marks your pick · Ctrl+T/A/F tags him ·
-        typing someone already taken fixes that pick
+        Enter records the pick · a pick on your slot is filed as yours automatically ·
+        Ctrl+T/A/F tags him · typing someone already taken fixes that pick ·
+        Shift+Enter only if you are entering your own pick out of turn
       </p>
 
       <details className="snake-wrap">

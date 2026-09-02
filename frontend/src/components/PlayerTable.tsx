@@ -108,8 +108,8 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200, myList }: Pr
               'XR',
               `XR — ${sourceLabel(column)}, verbatim, #1 is best. Click sorts the whole board into its order.`,
             )}
-          {onTag && <th>Tags</th>}
-          {onDraft && <th />}
+          {onTag && <th className="tags-head">Tags</th>}
+          {onDraft && <th className="actions-head">Pick</th>}
         </tr>
       </thead>
       <tbody>
