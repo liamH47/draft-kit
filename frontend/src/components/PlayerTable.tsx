@@ -16,8 +16,13 @@ type Props = {
   myList?: string | null
 }
 
-// 'value' is the server's order: the same measure the recommendation score
-// is built on — it tracks ADP roughly while keeping the model's opinion.
+// The board opens in XR order — the ranking you actually draft off — and
+// falls back to 'value' whenever no XR source is present, which the `active`
+// computation below handles without any extra state. 'value' is the server's
+// own order: the measure the recommendation score is built on. Note the two
+// WILL disagree, and visibly: the Value column and the recommendation panel
+// keep using the model whatever the rows are sorted by. That disagreement is
+// the useful part — it is where a ranking and the projections part company.
 // The others are one click away; nulls sort last.
 type SortKey = 'value' | 'vona' | 'adp' | 'consensus_rank' | 'my_list'
 
@@ -35,7 +40,7 @@ const byMyList = (list: string) => (a: PoolPlayer, b: PoolPlayer) =>
   (a.rank_by_source[list] ?? Infinity) - (b.rank_by_source[list] ?? Infinity)
 
 export function PlayerTable({ players, onDraft, onTag, limit = 200, myList }: Props) {
-  const [sort, setSort] = useState<SortKey>('value')
+  const [sort, setSort] = useState<SortKey>('my_list')
   // A source nobody in the pool carries gets no column: the feed may have
   // failed, and a column of dashes reads as "he is unranked" rather than as
   // "this source is missing".
@@ -62,7 +67,7 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200, myList }: Pr
 
   const sortable = (key: SortKey, label: string, title?: string) => (
     <th
-      title={title ?? `Sort by ${label}; click again for the default order`}
+      title={title ?? `Sort by ${label}; click again to go back to Value order`}
       className={active === key ? 'sortable on' : 'sortable'}
       onClick={() => setSort(active === key ? 'value' : key)}
     >
