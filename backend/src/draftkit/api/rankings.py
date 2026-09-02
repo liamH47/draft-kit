@@ -11,6 +11,12 @@ score. It never becomes a projection: a ranking says who people take, and the
 projections say who is good, and mixing those two would count one opinion
 twice.
 
+"Equal terms" is only the default. A list carries a weight, and a user who
+trusts their own list more than ESPN's says so by raising it; 0 keeps the list
+visible in its own column without letting it move the consensus at all. Weight
+reaches the consensus number and nothing else — see engine/adp.py for why it
+must not reach list_vs_market or the score.
+
 Every write is mirrored to a JSON file beside the database, on the same terms
 as tags: SQLite is the truth, the file is the copy you can read, back up, or
 carry to another machine.
@@ -43,6 +49,15 @@ _NAME_OK = re.compile(r"^[\w][\w .-]{0,39}$")
 
 class RankingPaste(BaseModel):
     text: str = Field(min_length=1)
+
+
+class RankingWeight(BaseModel):
+    """How far this list counts against the published ones. Bounded because a
+    weight is a ratio against ESPN and CBS at 1.0 and Boris Chen at 0.5: past
+    about 10 the consensus IS the list, and every value beyond that means the
+    same thing while reading like a typo."""
+
+    weight: float = Field(ge=0.0, le=10.0)
 
 
 def mirror_path(request: Request, user_id: str) -> Path:
@@ -127,6 +142,9 @@ def import_ranking(request: Request, list_name: str, body: RankingPaste, user: C
     if not parsed:
         raise HTTPException(422, "no player names found in that text")
 
+    # Re-pasting a list means the publisher updated it, not that the user
+    # stopped trusting it — so the weight survives the replacement.
+    weight = repo.get_ranking_weight(request.app.state.db, list_name, user_id=user.user_id)
     resolver = _resolver(request)
     rows = []
     unmatched = []
@@ -143,7 +161,9 @@ def import_ranking(request: Request, list_name: str, body: RankingPaste, user: C
                 "team": entry.team,
             }
         )
-    repo.replace_ranking_list(request.app.state.db, list_name, rows, user_id=user.user_id)
+    repo.replace_ranking_list(
+        request.app.state.db, list_name, rows, user_id=user.user_id, weight=weight
+    )
     write_mirror(request, user.user_id)
     # The pool caches per configuration, and this list is part of that
     # configuration — without this the board would show yesterday's consensus.
@@ -153,7 +173,28 @@ def import_ranking(request: Request, list_name: str, body: RankingPaste, user: C
         "total": len(rows),
         "matched": len(rows) - len(unmatched),
         "unmatched": unmatched,
+        "weight": weight,
     }
+
+
+@router.patch("/{list_name}")
+def reweight_ranking(
+    request: Request, list_name: str, body: RankingWeight, user: CurrentUser
+) -> dict:
+    """Change how much a list counts, without re-pasting it.
+
+    The list itself does not move, so this touches no ranks and loses no
+    unresolved names — it only changes the consensus a player is shown
+    against, and which list the board titles its own column after.
+    """
+    touched = repo.set_ranking_weight(
+        request.app.state.db, list_name, body.weight, user_id=user.user_id
+    )
+    if not touched:
+        raise HTTPException(404, f"no ranking list called {list_name!r}")
+    write_mirror(request, user.user_id)
+    clear_pool_cache()
+    return {"name": list_name, "weight": body.weight, "rows": touched}
 
 
 @router.delete("/{list_name}")
@@ -181,8 +222,11 @@ def restore_from_mirror(request: Request, user: CurrentUser) -> dict:
         raise HTTPException(422, f"{path} does not hold ranking lists")
     restored = 0
     for list_name, rows in payload.items():
+        # The weight is written onto every row, so any row carries it back; a
+        # file written before weights existed restores at the 1.0 default.
+        weight = float(rows[0].get("weight") or 1.0) if rows else 1.0
         restored += repo.replace_ranking_list(
-            request.app.state.db, str(list_name), rows, user_id=user.user_id
+            request.app.state.db, str(list_name), rows, user_id=user.user_id, weight=weight
         )
     clear_pool_cache()
     return {

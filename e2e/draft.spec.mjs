@@ -108,7 +108,12 @@ await page.screenshot({ path: `${SHOTS}/5-tagged.png`, fullPage: true })
 
 // --- searching for someone already taken offers the fix -------------------
 // `mine` is a player we drafted earlier, so he is certainly off the board.
-const takenSurname = mine.trim().split(/\s+/).pop().slice(0, 4)
+// The FULL surname, not a 4-letter prefix: the match list caps at 8, so a
+// truncated one ("Smit") collides with every available Smith and pushes the
+// taken player — the whole point of this assertion — off the end of it.
+// Which player `mine` is depends on live projections, so a prefix that is
+// unambiguous one day is not the next.
+const takenSurname = mine.trim().split(/\s+/).pop()
 await page.fill('.quick-entry input', takenSurname)
 await page.waitForSelector('.matches li.gone')
 const goneText = await page.locator('.matches li.gone').first().innerText()

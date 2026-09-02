@@ -13,7 +13,14 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
-from draftkit.engine.adp import blend_adp, consensus_rank, list_vs_market, sentinel_cutoff
+from draftkit.engine.adp import (
+    CUSTOM_PREFIX,
+    blend_adp,
+    consensus_rank,
+    consensus_weights,
+    list_vs_market,
+    sentinel_cutoff,
+)
 from draftkit.engine.baselines import baselines
 from draftkit.engine.scoring import score
 from draftkit.engine.tiers import gap_tiers
@@ -27,6 +34,7 @@ from draftkit.sources import (
     dp_playerids,
     espn_market,
     espn_projections,
+    fantasypros,
     ffcalc_adp,
     mfl_adp,
     sleeper_players,
@@ -77,8 +85,8 @@ def clear_pool_cache() -> None:
     _pool_cache.clear()
 
 
-def _custom_ranks_fingerprint(custom_ranks: dict[str, dict[str, float]] | None) -> str:
-    """A stable, cheap identity for the user's pasted lists.
+def _custom_ranks_fingerprint(custom_ranks: dict | None) -> str:
+    """A stable, cheap identity for the user's pasted lists, or their weights.
 
     Names and sizes alone would miss a re-paste of the same list at the same
     length, which is exactly what correcting a cheat sheet looks like, so the
@@ -99,10 +107,13 @@ def build_pool_cached(
     overrides_path: Path | None = None,
     min_points: float = 1.0,
     custom_ranks: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, float] | None = None,
 ) -> PoolResult:
     # The user's own pasted lists change the pool (they feed consensus and the
     # list-vs-market nudge), so they have to be part of the cache identity or a
     # freshly imported cheat sheet would not show up until the cache lapsed.
+    # Their weights ride along for the same reason: reweighting a list moves
+    # the consensus column without adding or removing a single row.
     key = (
         league.model_dump_json(),
         season,
@@ -110,6 +121,7 @@ def build_pool_cached(
         str(overrides_path),
         min_points,
         _custom_ranks_fingerprint(custom_ranks),
+        _custom_ranks_fingerprint(custom_weights),
     )
     token = store.freshness_token()
     hit = _pool_cache.get(key)
@@ -125,6 +137,7 @@ def build_pool_cached(
         overrides_path=overrides_path,
         min_points=min_points,
         custom_ranks=custom_ranks,
+        custom_weights=custom_weights,
     )
     # Re-fingerprint AFTER building: the build itself may have fetched and
     # written snapshots, and the cached token must describe the tree the
@@ -142,9 +155,13 @@ def build_pool(
     overrides_path: Path | None = None,
     min_points: float = 1.0,
     custom_ranks: dict[str, dict[str, float]] | None = None,
+    custom_weights: dict[str, float] | None = None,
 ) -> PoolResult:
     sources: dict[str, SnapshotMeta] = {}
     custom_ranks = custom_ranks or {}
+    # How far the user trusts each of their own lists, folded in beside the
+    # published ones. A list nobody weighted counts level with ESPN and CBS.
+    rank_weights = consensus_weights(custom_weights)
 
     players_ds, sources["sleeper_players"] = store.get(sleeper_players)
     proj_ds, sources["sleeper_projections"] = store.get(sleeper_projections, {"season": season})
@@ -281,6 +298,28 @@ def build_pool(
     except Exception:
         pass
 
+    # FantasyPros ECR. The crosswalk carries fantasypros_id, so individual
+    # players join by id and only team defenses reach the name resolver —
+    # which is the join the defense index was built for.
+    fp_to_sleeper = {
+        row["fantasypros_id"]: row["sleeper_id"]
+        for row in crosswalk_rows
+        if row.get("fantasypros_id")
+    }
+    fp_by_id: dict[str, dict[str, Any]] = {}
+    try:
+        fp_ds, sources["fantasypros"] = store.get(fantasypros, {"format": scoring_preset})
+        for row in fp_ds.rows:
+            sleeper_id = fp_to_sleeper.get(row["fantasypros_id"])
+            if sleeper_id is None and row.get("name"):
+                sleeper_id = resolver.resolve(
+                    row["name"], row["position"], row.get("team")
+                ).sleeper_id
+            if sleeper_id:
+                fp_by_id[sleeper_id] = row
+    except Exception:
+        pass
+
     # MyFantasyLeague: hand-run home leagues, which is the population this
     # tool actually gets used in. mfl_id is the crosswalk's own primary key, so
     # this is the one market that needs no name matching at all.
@@ -398,6 +437,7 @@ def build_pool(
         expert = expert_by_id.get(player_id)
         eproj = espn_proj_by_id.get(player_id)
         cbs = cbs_by_id.get(player_id)
+        fp = fp_by_id.get(player_id)
         yahoo = yahoo_by_id.get(player_id)
         mfl = mfl_by_id.get(player_id)
 
@@ -438,17 +478,20 @@ def build_pool(
             rank_by_source["cbs"] = float(cbs["rank"])
         if expert and expert.get("expert_rank"):
             rank_by_source["expert"] = float(expert["expert_rank"])
+        if fp and fp.get("rank"):
+            rank_by_source["fantasypros"] = float(fp["rank"])
         # The user's own pasted lists sit alongside the published ones. They
         # are namespaced so a list called "espn" cannot quietly overwrite the
         # feed of the same name.
         for list_name, ranks in custom_ranks.items():
             if player_id in ranks:
-                rank_by_source[f"custom:{list_name}"] = ranks[player_id]
+                rank_by_source[f"{CUSTOM_PREFIX}{list_name}"] = ranks[player_id]
 
-        if expert:
-            extra["expert.stdev"] = expert.get("expert_stdev")
-            extra["expert.best"] = expert.get("expert_best")
-            extra["expert.worst"] = expert.get("expert_worst")
+        spread = expert or fp
+        if spread:
+            extra["expert.stdev"] = spread.get("expert_stdev")
+            extra["expert.best"] = spread.get("expert_best")
+            extra["expert.worst"] = spread.get("expert_worst")
         if espn:
             extra["espn.percent_owned"] = espn.get("percent_owned")
             extra["espn.auction_value"] = espn.get("auction_value")
@@ -469,7 +512,7 @@ def build_pool(
         # Byes chain across sources: FFC covers most, Yahoo and CBS fill the
         # defenses and deep names FFC does not list.
         bye = None
-        for src in (ffc, yahoo, cbs):
+        for src in (ffc, yahoo, cbs, fp):
             if src and src.get("bye"):
                 bye = src["bye"]
                 break
@@ -486,7 +529,7 @@ def build_pool(
                 adp_stdev=ffc.get("stdev") if ffc else None,
                 rank_by_source=rank_by_source,
                 list_vs_market=list_vs_market(rank_by_source, blended),
-                consensus_rank=consensus_rank(rank_by_source),
+                consensus_rank=consensus_rank(rank_by_source, rank_weights),
                 adp_shift=adp_shift,
                 adp_shift_sources=adp_shift_sources,
                 injury_status=player.get("injury_status"),

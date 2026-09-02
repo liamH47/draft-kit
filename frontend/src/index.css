@@ -2,6 +2,7 @@
   --text: #6b6375;
   --text-h: #08060d;
   --bg: #fff;
+  --surface: #fafaf9;
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
@@ -11,11 +12,18 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* System stacks only, deliberately: draft day runs with DRAFTKIT_OFFLINE=1
+     and a webfont that cannot load is a board rendering in Times at 8pm.
+     These pick the best face already on the machine and stop. */
+  --sans:
+    'Inter var', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --heading:
+    'Segoe UI Variable Display', 'Segoe UI Semibold', -apple-system, BlinkMacSystemFont,
+    Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Menlo, Consolas, monospace;
 
-  font: 18px/145% var(--sans);
+  font: 17px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
   color: var(--text);
@@ -30,24 +38,50 @@
   }
 }
 
+/* Dark, in three states. No data-theme attribute means "follow the system",
+   which is the default; an explicit choice wins in BOTH directions, which is
+   why the same declarations appear twice. If you edit one block, edit both —
+   they are one palette, and a browser cannot share them.
+   The `:not([data-theme='light'])` guard is what lets someone on a dark OS
+   force the light board, which is a real preference under bright light. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
+  :root:not([data-theme='light']) {
+    --text: #a8b0bd;
     --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
+    --bg: #14151a;
+    --surface: #1b1d24;
+    --border: #32353f;
     --code-bg: #1f2028;
     --accent: #c084fc;
     --accent-bg: rgba(192, 132, 252, 0.15);
     --accent-border: rgba(192, 132, 252, 0.5);
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+      rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
   }
 
   #social .button-icon {
     filter: invert(1) brightness(2);
   }
+}
+
+:root[data-theme='dark'] {
+  --text: #a8b0bd;
+  --text-h: #f3f4f6;
+  --bg: #14151a;
+  --surface: #1b1d24;
+  --border: #32353f;
+  --code-bg: #1f2028;
+  --accent: #c084fc;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --accent-border: rgba(192, 132, 252, 0.5);
+  --social-bg: rgba(47, 48, 58, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.5) 0 10px 15px -3px, rgba(0, 0, 0, 0.3) 0 4px 6px -2px;
+}
+
+:root[data-theme='dark'] #social .button-icon {
+  filter: invert(1) brightness(2);
 }
 
 #root {
@@ -64,6 +98,8 @@
 
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--text);
 }
 
 h1,
@@ -74,11 +110,12 @@ h2 {
 }
 
 h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
+  font-size: 46px;
+  font-weight: 600;
+  letter-spacing: -1.2px;
   margin: 32px 0;
   @media (max-width: 1024px) {
-    font-size: 36px;
+    font-size: 32px;
     margin: 20px 0;
   }
 }

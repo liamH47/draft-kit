@@ -4,11 +4,13 @@ import { Link, useParams } from 'react-router-dom'
 
 import { api } from '../api/client'
 import { RankingImport } from '../components/RankingImport'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { TagBackup } from '../components/TagBackup'
 import type { PoolPlayer, Tag } from '../api/types'
 import { PlayerTable } from '../components/PlayerTable'
 import { PositionFilter } from '../components/PositionFilter'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMyList } from '../state/useMyList'
 
 /** Pre-draft prep: mark who you'd reach for and who you'd let slide.
  *  Tags are yours, not a league's — they follow you into every draft. */
@@ -17,6 +19,7 @@ export function CheatSheet() {
   const queryClient = useQueryClient()
   const [position, setPosition] = useState('ALL')
   const [onlyTagged, setOnlyTagged] = useState(false)
+  const myList = useMyList()
 
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: api.listSessions })
   const sessionId = sessions.data?.find((s) => s.league_id === leagueId)?.id
@@ -57,6 +60,7 @@ export function CheatSheet() {
         <h1>Cheat sheet</h1>
         <Link to="/strategies">strategy guide</Link>
         <Link to={`/draft/${sessionId}`}>go to draft board</Link>
+        <ThemeToggle />
       </header>
       <p className="muted">
         <strong>T</strong> target (take ahead of ADP) · <strong>A</strong> at ADP ·{' '}
@@ -126,6 +130,7 @@ export function CheatSheet() {
       <PlayerTable
         players={players}
         onTag={(playerId, value) => tag.mutate({ playerId, value })}
+        myList={myList}
       />
     </main>
   )

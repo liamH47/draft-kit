@@ -58,3 +58,30 @@ def test_overrides_win(tmp_path: Path):
     res = build(overrides_path=path).resolve("A.J. Brown", "WR", "PHI")
     assert res.sleeper_id == "42"
     assert res.confidence == "override"
+
+
+def test_the_shipped_overrides_file_is_loadable_and_points_at_real_players():
+    """overrides.yaml is the one file in the identity chain a human edits by
+    hand, usually the night before a draft. A typo in it is not a bad match —
+    it is an exception on every board read, or a mapping to a player id that
+    resolves silently to nobody."""
+    import yaml
+
+    import draftkit.identity.resolver as resolver_module
+
+    path = Path(resolver_module.__file__).parent / "overrides.yaml"
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    assert isinstance(data, dict), "overrides.yaml must be a name -> id mapping"
+    for name, player_id in data.items():
+        assert isinstance(name, str) and name.strip(), f"blank override key: {name!r}"
+        # YAML reads a bare 13287 as an int, which never equals a Sleeper id.
+        assert isinstance(player_id, str), f"{name}: the id must be a quoted string"
+
+    # Every override must actually reach the player it names.
+    players = [
+        {"sleeper_id": pid, "name": name, "position": "RB", "team": None}
+        for name, pid in data.items()
+    ]
+    r = Resolver.build(players, [], path)
+    for name, player_id in data.items():
+        assert r.resolve(name, "RB").sleeper_id == player_id, name

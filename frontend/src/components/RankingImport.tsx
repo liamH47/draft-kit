@@ -4,9 +4,23 @@ import { useState } from 'react'
 import { api } from '../api/client'
 import type { RankingImport as ImportResult } from '../api/types'
 
+/** How far a list counts inside the consensus rank. The published lists sit at
+ *  1 (ESPN, CBS) and 0.5 (Boris Chen), so these are ratios against those and
+ *  not percentages of anything. Kept to a short menu because the difference
+ *  between 3 and 3.5 is not a thing anybody can see on a board. */
+const WEIGHTS: { value: number; label: string }[] = [
+  { value: 0, label: 'not counted' },
+  { value: 0.5, label: 'half a vote' },
+  { value: 1, label: 'level with ESPN' },
+  { value: 2, label: 'counts double' },
+  { value: 4, label: 'counts 4×' },
+  { value: 8, label: 'mostly this list' },
+]
+
 /** Bring in a ranking list nobody publishes for free: paste a PDF cheat sheet,
  *  a spreadsheet column, or a table copied off a page. It joins the published
- *  lists in the consensus rank the board shows itself against.
+ *  lists in the consensus rank the board shows itself against, by however much
+ *  you say — and the one you weight highest gets a column of its own.
  *
  *  The names it could NOT match are shown, always. A list that quietly arrives
  *  fourteen players short is the failure you find out about in round four. */
@@ -36,6 +50,14 @@ export function RankingImport() {
     },
   })
 
+  const reweight = useMutation({
+    mutationFn: ({ listName, weight }: { listName: string; weight: number }) =>
+      api.setRankingWeight(listName, weight),
+    // The consensus column is built server-side from these weights, so the
+    // board has to be refetched, not just this list.
+    onSuccess: () => void queryClient.invalidateQueries(),
+  })
+
   const saved = lists.data?.lists ?? []
   const ready = name.trim().length > 0 && text.trim().length > 0
 
@@ -52,7 +74,26 @@ export function RankingImport() {
               <strong>{list.list_name}</strong>{' '}
               <span className={list.matched < list.total ? 'muted warn' : 'muted'}>
                 {list.matched} of {list.total} matched
-              </span>
+              </span>{' '}
+              <select
+                className="weight"
+                value={String(list.weight)}
+                title="How much this list counts inside the Consensus column, against ESPN and CBS at 1. It never touches the value score — a ranking says who gets taken, not who is good."
+                onChange={(e) =>
+                  reweight.mutate({ listName: list.list_name, weight: Number(e.target.value) })
+                }
+              >
+                {/* A weight set through the API that is not on the menu still
+                    has to show, or the control would silently misreport it. */}
+                {(WEIGHTS.some((w) => w.value === list.weight)
+                  ? WEIGHTS
+                  : [...WEIGHTS, { value: list.weight, label: `×${list.weight}` }]
+                ).map((w) => (
+                  <option key={w.value} value={String(w.value)}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="link"
@@ -72,6 +113,11 @@ export function RankingImport() {
             Paste any ranking list — a PDF cheat sheet, a spreadsheet column, a table copied off a
             page. Numbers, positions, teams and bye weeks are all optional; the order is what
             counts. Page numbers and header rows are thrown away.
+          </p>
+          <p className="muted">
+            An imported list gets its own column on the board and joins the Consensus rank; the
+            dropdown beside it sets how hard it pulls. It never moves the value score — a ranking
+            says who a room takes, the projections say who is good.
           </p>
           <input
             type="text"

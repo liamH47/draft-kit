@@ -12,6 +12,7 @@ Shapes it handles:
     2  Bijan Robinson  RB  ATL
     3,Justin Jefferson,WR,MIN
     RB4 Saquon Barkley PHI (BYE 9)
+    5  Jahmyr Gibbs (DET)  RB1
     Malik Nabers
 
 What it throws away: blank lines, page numbers, and repeated header rows,
@@ -71,6 +72,13 @@ _LEADING_RANK = re.compile(r"^\s*(\d{1,3})\s*[.)\]:,;|-]\s*|^\s*(\d{1,3})\s+")
 _POS_RANK = re.compile(r"^\s*([A-Za-z/]{1,7})\s*(\d{1,3})\b\s*")
 # "(BYE 9)", "(9)", "bye: 9" — trailing bye furniture nobody wants in a name.
 _BYE = re.compile(r"\((?:bye[\s:]*)?\d{1,2}\)|\bbye[\s:]+\d{1,2}\b", re.IGNORECASE)
+# Metadata a list puts in brackets rather than a column of its own: the team in
+# "Jahmyr Gibbs (DET)", which several published boards do. Stripped before a
+# token is tested, because "(DET)" is not a team code and glueing it onto the
+# name loses BOTH the team and the player — every row of such a list would come
+# back unmatched.
+_BRACKETS = ".,()[]"
+
 # A name has to have letters in it. "12", "-", "*" do not.
 _HAS_LETTERS = re.compile(r"[A-Za-z]")
 _HAS_DIGITS = re.compile(r"\d")
@@ -110,8 +118,9 @@ def _take_position(cells: list[str]) -> tuple[str | None, list[str]]:
 def _take_team(cells: list[str]) -> tuple[str | None, list[str]]:
     """Same for a cell that is nothing but a team code."""
     for i, cell in enumerate(cells):
-        team = canonical_team(cell.strip())
-        if team and len(cell.strip()) <= 4:
+        bare = cell.strip().strip(_BRACKETS)
+        team = canonical_team(bare)
+        if team and len(bare) <= 4:
             return team, cells[:i] + cells[i + 1 :]
     return None, cells
 
@@ -124,7 +133,7 @@ def _split_trailing_tokens(name: str) -> tuple[str, str | None, str | None]:
     tokens = name.split()
     # Work from the right: the tail is where the metadata lives.
     while len(tokens) > 1:
-        tail = tokens[-1].strip(".,")
+        tail = tokens[-1].strip(_BRACKETS)
         bare = re.sub(r"\d+$", "", tail).upper()
         if team is None and canonical_team(tail):
             team = canonical_team(tail)

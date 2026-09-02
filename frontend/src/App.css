@@ -8,6 +8,54 @@
   --steal: #2e9e4f;
   --reach: #c0392b;
   --line: var(--border, #e5e4e7);
+  /* Text colours for the small status flags. Split out as tokens because they
+     are the ones that CANNOT survive a dark background unchanged: they were
+     picked as dark ink on white. */
+  --warm-ink: #a35a08;
+  --cold-ink: #5a6478;
+  --hurt-ink: #a51f1f;
+  --mute-ink: #6a6a6a;
+  /* How strongly a position tint washes its cell on the snake grid. */
+  --wash: 0.22;
+}
+
+/* The same palette for a dark board. These are not the light values dimmed:
+   a saturated red that reads as urgent on white turns to mud on near-black,
+   so each one is lifted in lightness and pulled back in saturation until it
+   carries the same weight. Kept in step with the two blocks in index.css —
+   see the note there for why the declarations are duplicated. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --tier-1: #f2777a;
+    --tier-2: #f0a05a;
+    --tier-3: #e8cd6a;
+    --tier-4: #8fc47f;
+    --tier-5: #78aed6;
+    --tier-none: #5b5f6b;
+    --steal: #4ecf74;
+    --reach: #ef6f62;
+    --warm-ink: #f0a05a;
+    --cold-ink: #97a2b6;
+    --hurt-ink: #f2777a;
+    --mute-ink: #9aa0ab;
+    --wash: 0.3;
+  }
+}
+
+:root[data-theme='dark'] {
+  --tier-1: #f2777a;
+  --tier-2: #f0a05a;
+  --tier-3: #e8cd6a;
+  --tier-4: #8fc47f;
+  --tier-5: #78aed6;
+  --tier-none: #5b5f6b;
+  --steal: #4ecf74;
+  --reach: #ef6f62;
+  --warm-ink: #f0a05a;
+  --cold-ink: #97a2b6;
+  --hurt-ink: #f2777a;
+  --mute-ink: #9aa0ab;
+  --wash: 0.3;
 }
 
 .wrap {
@@ -124,6 +172,31 @@ h2.or { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; o
 .side-pane h2 { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
 @media (max-width: 60rem) { .columns { flex-direction: column; } .side-pane { flex: 1 1 auto; width: 100%; } }
 
+/* Form controls and links inherit the BROWSER's colours, not the page's, so
+   on a dark board every input painted itself white with black text — most
+   visibly the quick-entry box, which is the control you spend a draft inside.
+   Set early so the specific rules further down still win where they mean to
+   (.chip.on, button.mine, button.tag.on all invert on purpose). */
+input,
+select,
+textarea,
+button {
+  background: var(--surface, #fff);
+  color: var(--text-h);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+input::placeholder,
+textarea::placeholder { color: var(--text); opacity: 0.7; }
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Default link blue is fixed by the browser and does not know about themes. */
+a { color: var(--accent); }
+a:visited { color: var(--accent); }
+
 /* --- pool table --- */
 .chips { display: flex; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
 .chip {
@@ -132,17 +205,28 @@ h2.or { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; o
 }
 .chip.on { background: var(--text-h, #08060d); color: var(--bg, #fff); }
 table.pool { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-table.pool th { text-align: left; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; padding: 0.3rem 0.4rem; }
-table.pool td { padding: 0.28rem 0.4rem; border-top: 1px solid var(--line); }
+table.pool th {
+  text-align: left; font-size: 0.7rem; text-transform: uppercase; padding: 0.4rem 0.45rem;
+  /* Was opacity 0.6, which dimmed the header to near-invisible on dark.
+     A real colour plus letter-spacing reads as a header without whispering. */
+  color: var(--text); opacity: 0.85; font-weight: 600; letter-spacing: 0.04em;
+  border: 1px solid var(--line); background: var(--surface, transparent);
+}
+/* Ruled on every side, not just between rows: under a pick clock you are
+   tracking one player ACROSS ten columns, and a horizontal-only rule gives
+   the eye nothing to follow. */
+table.pool td { padding: 0.3rem 0.45rem; border: 1px solid var(--line); }
 /* The app shell centres its content, which pushed every player name into
    the middle of a wide column. The pool table is a table: it reads down a
    left edge. The .num cells opt back out immediately below. */
 table.pool td, table.pool th { text-align: left; }
-table.pool .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.pool .num { text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+/* The name is what you scan for; give it the weight and let the rest recede. */
+table.pool td.name-cell .name { font-weight: 550; color: var(--text-h); }
 table.pool .strong { font-weight: 700; }
 .badge.steal { color: var(--steal); font-weight: 700; }
 .badge.reach { color: var(--reach); }
-tr.tag-target { background: rgba(46, 158, 79, 0.08); }
+tr.tag-target { background: color-mix(in srgb, var(--steal) 12%, transparent); }
 tr.tag-fade { opacity: 0.5; }
 .tags { white-space: nowrap; }
 button.tag {
@@ -158,6 +242,7 @@ button.tag.on { background: var(--text-h, #08060d); color: var(--bg, #fff); }
   right: 0;
   background: var(--bg, #fff);
   box-shadow: -6px 0 6px -6px rgba(0, 0, 0, 0.25);
+  z-index: 1;
 }
 table.pool th:last-child {
   position: sticky;
@@ -192,12 +277,24 @@ table.snake td.empty { opacity: 0.4; }
 table.snake td.current { outline: 2px solid var(--steal); outline-offset: -2px; }
 table.snake td.mine { font-weight: 700; }
 /* position = color, the way a wall board reads at a glance */
-td.p-qb { background: rgba(214, 69, 69, 0.2); }
-td.p-rb { background: rgba(106, 155, 95, 0.24); }
-td.p-wr { background: rgba(74, 127, 165, 0.24); }
-td.p-te { background: rgba(224, 123, 57, 0.22); }
-td.p-k { background: rgba(140, 100, 180, 0.22); }
-td.p-def { background: rgba(120, 110, 100, 0.24); }
+/* Every cell ruled, so a pick can be traced to its round and its seat. */
+table.snake th, table.snake td { border: 1px solid var(--line); }
+table.snake tbody th {
+  font-variant-numeric: tabular-nums;
+  background: var(--surface, transparent);
+  color: var(--text-h);
+  font-weight: 600;
+}
+table.snake th.corner {
+  font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text); opacity: 0.85;
+}
+td.p-qb { background: rgba(214, 69, 69, var(--wash)); }
+td.p-rb { background: rgba(106, 155, 95, var(--wash)); }
+td.p-wr { background: rgba(74, 127, 165, var(--wash)); }
+td.p-te { background: rgba(224, 123, 57, var(--wash)); }
+td.p-k { background: rgba(140, 100, 180, var(--wash)); }
+td.p-def { background: rgba(120, 110, 100, var(--wash)); }
 
 /* --- recommendations --- */
 .recs { list-style: none; padding: 0; margin: 0 0 1.5rem; }
@@ -247,13 +344,13 @@ table.roster .count { opacity: 0.6; font-weight: 400; }
 .flag.rising { color: var(--steal); }
 .flag.falling { color: var(--reach); }
 /* Buzz: what the rooms did in the last day, which moves before ADP does. */
-.flag.buzz { background: rgba(214, 122, 20, 0.16); color: #a35a08; text-transform: uppercase; }
-.flag.cold { background: rgba(90, 100, 120, 0.14); color: #5a6478; text-transform: uppercase; }
+.flag.buzz { background: rgba(214, 122, 20, 0.16); color: var(--warm-ink); text-transform: uppercase; }
+.flag.cold { background: rgba(90, 100, 120, 0.14); color: var(--cold-ink); text-transform: uppercase; }
 /* Injury: the only badge that can cost a season, so it reads first. */
 .flag.injury { text-transform: uppercase; letter-spacing: 0.03em; }
-.flag.injury.out { background: rgba(190, 40, 40, 0.16); color: #a51f1f; }
-.flag.injury.doubt { background: rgba(214, 122, 20, 0.16); color: #a35a08; }
-.flag.injury.watch { background: rgba(120, 120, 120, 0.12); color: #6a6a6a; font-weight: 600; }
+.flag.injury.out { background: rgba(190, 40, 40, 0.16); color: var(--hurt-ink); }
+.flag.injury.doubt { background: rgba(214, 122, 20, 0.16); color: var(--warm-ink); }
+.flag.injury.watch { background: rgba(120, 120, 120, 0.12); color: var(--mute-ink); font-weight: 600; }
 td.vona-hot { color: var(--tier-1); font-weight: 700; }
 .rec-head .wait {
   font-size: 0.68rem; padding: 0.05rem 0.35rem; border-radius: 3px;
@@ -300,6 +397,13 @@ table.pool th { font-size: 0.68rem; }
 }
 .ranking-list { list-style: none; padding: 0; margin: 0.4rem 0; font-size: 0.85rem; }
 .ranking-list li { padding: 0.15rem 0; }
+.ranking-list .weight { font: inherit; font-size: 0.8rem; padding: 0 0.2rem; }
+/* Your own list's column. Tinted so it reads as yours rather than as another
+   fetched source — deliberately NOT the green/red the ADP column uses, which
+   already means bargain and reach. Bold where it disagrees hard with this
+   board, which is the row worth a second's thought. */
+table.pool td.my-list { color: var(--tier-5); }
+table.pool td.my-list.disagree { font-weight: 600; }
 .ranking-list .link {
   font: inherit; font-size: 0.8rem; background: none; border: none;
   cursor: pointer; color: var(--reach); margin-left: 0.5rem; text-decoration: underline;
@@ -359,3 +463,17 @@ tr.tier-break td { border-top: 2px solid var(--line); }
 .strategy dd ul { margin: 0; padding-left: 1.05rem; }
 .strategy dd li { padding: 0.06rem 0; }
 @media (max-width: 34rem) { .strategy dl > div { flex-direction: column; gap: 0.1rem; } }
+
+/* Theme toggle: a glyph, sized to sit on the header line with the links. */
+.theme-toggle {
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-h);
+}
+.theme-toggle:hover { background: var(--code-bg); }

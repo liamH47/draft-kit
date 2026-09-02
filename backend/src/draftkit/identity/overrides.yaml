@@ -2,4 +2,9 @@
 # Keys are matched after name normalization, so punctuation/suffixes don't matter.
 # Example:
 #   "Kenneth Walker": "8151"
-{}
+
+# Sleeper spells him "Jeremiyah"; several published boards spell him
+# "Jeremiah". Nothing in the chain bridges a one-letter difference inside a
+# first name, and the miss is silent from the reader's side: the row imports,
+# resolves to nothing, and the player is simply absent from that list's column.
+"Jeremiah Love": "13287"

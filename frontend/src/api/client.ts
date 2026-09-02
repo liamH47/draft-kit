@@ -110,6 +110,13 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ text }),
     }),
+  // How far one of your lists counts against the published ones, without
+  // re-pasting it. Moves the consensus column only.
+  setRankingWeight: (name: string, weight: number) =>
+    request<{ name: string; weight: number; rows: number }>(
+      `/api/rankings/${encodeURIComponent(name)}`,
+      { method: 'PATCH', body: JSON.stringify({ weight }) },
+    ),
   deleteRanking: (name: string) =>
     request<unknown>(`/api/rankings/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 }

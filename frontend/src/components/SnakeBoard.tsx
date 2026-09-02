@@ -27,7 +27,11 @@ export function SnakeBoard({ board }: { board: Board }) {
       <table className="snake">
         <thead>
           <tr>
-            <th />
+            {/* The round column had no header at all. It is the axis the whole
+                grid is read against, so it gets named like the other one. */}
+            <th className="corner" title="Round">
+              Rd
+            </th>
             {slots.map((s) => (
               <th key={s} className={s === mySlot ? 'me' : undefined}>
                 {s === mySlot ? 'you' : s}
@@ -38,7 +42,7 @@ export function SnakeBoard({ board }: { board: Board }) {
         <tbody>
           {roundNos.map((r) => (
             <tr key={r}>
-              <th>{r}</th>
+              <th title={`Round ${r}`}>{r}</th>
               {slots.map((s) => {
                 const overall = overallFor(r, s, teams)
                 const pick = byOverall.get(overall)

@@ -336,3 +336,131 @@ def test_sleeper_players_carries_injury_and_depth_chart():
     assert by_name["Hurt Guy"]["injury_body_part"] == "Knee - ACL"
     assert by_name["Hurt Guy"]["depth_chart_order"] == 2
     assert by_name["Fit Guy"]["injury_status"] is None
+
+
+def test_fantasypros_parse():
+    """ECR arrives inside a <script> on an HTML page rather than from an API,
+    so the parse starts by finding a blob in markup. Everything downstream
+    depends on that having worked."""
+    from draftkit.sources import fantasypros
+
+    raw = load_fixture("fantasypros")
+    fantasypros.validate(raw)
+    ds = fantasypros.parse(raw)
+    by_id = {r["fantasypros_id"]: r for r in ds.rows}
+
+    gibbs = by_id["22968"]
+    assert gibbs["name"] == "Jahmyr Gibbs"
+    assert gibbs["position"] == "RB"
+    assert gibbs["team"] == "DET"
+    assert gibbs["rank"] == 1.0
+    assert gibbs["bye"] == 6
+    # The spread across the experts who ranked him, which is what makes a
+    # confident-looking average readable.
+    assert gibbs["expert_best"] <= gibbs["expert_rank"] <= gibbs["expert_worst"]
+    assert gibbs["expert_stdev"] > 0
+
+    # DST is their spelling; DEF is ours, everywhere else in the codebase.
+    texans = by_id["8120"]
+    assert texans["position"] == "DEF"
+    assert texans["name"] == "Houston Texans"
+
+
+def test_fantasypros_request_serves_a_different_page_per_scoring_format():
+    """Standard, half-PPR and PPR are genuinely different lists — hundreds of
+    players sit at a different rank — so the format must reach the URL."""
+    from draftkit.sources import fantasypros
+
+    urls = {f: fantasypros.request({"format": f}).url for f in ("standard", "half_ppr", "ppr")}
+    assert len(set(urls.values())) == 3
+    assert "half-point-ppr" in urls["half_ppr"]
+    # An unspecified format must not silently become standard scoring.
+    assert fantasypros.request({}).url == urls["half_ppr"]
+
+
+def test_fantasypros_rejects_a_page_it_does_not_recognise():
+    """This adapter scrapes markup, so it is the one most likely to be broken
+    by a redesign. It has to fail loudly: a near-empty list parsed from a
+    changed page would cost the column silently."""
+    from draftkit.sources import fantasypros
+    from draftkit.sources.base import RawPayload
+
+    cases = {
+        "wrong content type": RawPayload(b'var ecrData = {"players":[1]};', "application/json"),
+        "no blob at all": RawPayload(b"<html><body>maintenance</body></html>", "text/html"),
+        "blob is not json": RawPayload(
+            b"<html><script>var ecrData = {nope};</script>", "text/html"
+        ),
+        "blob has no players": RawPayload(
+            b'<html><script>var ecrData = {"players":[]};</script>', "text/html"
+        ),
+        "blob is not an object": RawPayload(
+            b"<html><script>var ecrData = {};</script>", "text/html"
+        ),
+    }
+    for label, raw in cases.items():
+        with pytest.raises(SourceError):
+            fantasypros.validate(raw)
+            raise AssertionError(label)
+
+
+def test_fantasypros_skips_rows_that_carry_no_rank():
+    """A player listed on the page but not yet ranked is not a rank of zero."""
+    from draftkit.sources import fantasypros
+    from draftkit.sources.base import RawPayload
+
+    blob = {
+        "players": [
+            {
+                "player_id": 1,
+                "player_name": "Ranked Man",
+                "player_position_id": "WR",
+                "rank_ecr": 4,
+                "tier": 2,
+                "player_bye_week": "9",
+                "rank_ave": "4.1",
+                "rank_std": "1.0",
+                "rank_min": "3",
+                "rank_max": "6",
+            },
+            {"player_id": 2, "player_name": "Unranked Man", "rank_ecr": None},
+            {"player_id": None, "player_name": "No Id", "rank_ecr": 5},
+        ]
+    }
+    raw = RawPayload(f"<script>var ecrData = {json.dumps(blob)};</script>".encode(), "text/html")
+    rows = fantasypros.parse(raw).rows
+    assert [r["fantasypros_id"] for r in rows] == ["1"]
+
+
+def test_fantasypros_tolerates_a_missing_expert_spread():
+    """One expert ranking a player leaves the spread columns empty strings.
+    Absent has to stay absent — zero is a real rank."""
+    from draftkit.sources import fantasypros
+    from draftkit.sources.base import RawPayload
+
+    blob = {
+        "players": [
+            {
+                "player_id": 7,
+                "player_name": "Thin Data",
+                "player_position_id": "TE",
+                "player_team_id": None,
+                "rank_ecr": 88,
+                "tier": None,
+                "player_bye_week": "",
+                "rank_ave": "",
+                "rank_std": None,
+                "rank_min": "not a number",
+                "rank_max": "90",
+            }
+        ]
+    }
+    raw = RawPayload(f"<script>var ecrData = {json.dumps(blob)};</script>".encode(), "text/html")
+    (row,) = fantasypros.parse(raw).rows
+    assert row["tier"] is None
+    assert row["bye"] is None
+    assert row["team"] is None
+    assert row["expert_rank"] is None
+    assert row["expert_stdev"] is None
+    assert row["expert_best"] is None  # unparseable, not zero
+    assert row["expert_worst"] == 90.0

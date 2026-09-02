@@ -8,10 +8,11 @@ themselves, so it cannot drift from the code.
 | --- | --- | --- | --- | --- | --- |
 | [Boris Chen expert tiers](http://www.borischen.co/) | expert | none | `name` | 12.0h | `tier`, `rank`, `expert_rank`, `expert_stdev`, `expert_best`, `expert_worst` |
 | [CBS consensus rankings](https://www.cbssports.com/fantasy/football/) | platform | none | `cbs_id` | 12.0h | `rank`, `bye` |
-| [DynastyProcess ID crosswalk](https://github.com/dynastyprocess/data) | crosswalk | none | `sleeper_id` | 168.0h | `espn_id`, `yahoo_id`, `cbs_id`, `mfl_id`, `merge_name` |
+| [DynastyProcess ID crosswalk](https://github.com/dynastyprocess/data) | crosswalk | none | `sleeper_id` | 168.0h | `espn_id`, `yahoo_id`, `cbs_id`, `mfl_id`, `fantasypros_id`, `merge_name` |
 | [ESPN league settings](https://fantasy.espn.com/) | league | none | `espn_league_id` | 12.0h | `num_teams`, `roster`, `scoring_preset`, `rounds`, `reception_points` |
 | [ESPN ADP and draft ranks](https://fantasy.espn.com/) | platform | none | `espn_id` | 6.0h | `adp`, `auction_value`, `percent_owned`, `list_rank` |
 | [ESPN season projections](https://fantasy.espn.com/) | projection | none | `espn_id` | 6.0h | `stats`, `applied_total` |
+| [FantasyPros expert consensus rankings](https://www.fantasypros.com/nfl/rankings/) | expert | none | `fantasypros_id` | 12.0h | `rank`, `tier`, `bye`, `expert_rank`, `expert_stdev`, `expert_best`, `expert_worst` |
 | [Fantasy Football Calculator ADP](https://fantasyfootballcalculator.com/adp) | market | none | `ffc_id` | 3.0h | `adp`, `stdev`, `high`, `low`, `times_drafted`, `bye` |
 | [MyFantasyLeague ADP](https://www.myfantasyleague.com/) | market | none | `mfl_id` | 6.0h | `adp`, `earliest`, `latest`, `times_drafted`, `drafted_pct` |
 | [Sleeper player universe](https://docs.sleeper.com/) | identity | none | `sleeper_id` | 24.0h | `name`, `position`, `team`, `status`, `injury_status`, `depth_chart_order` |
@@ -27,6 +28,7 @@ themselves, so it cannot drift from the code.
 - League settings from ESPN Fantasy.
 - ADP and draft ranks from ESPN Fantasy.
 - Season projections from ESPN Fantasy.
+- Expert consensus rankings from FantasyPros.
 - ADP data from Fantasy Football Calculator.
 - ADP data from MyFantasyLeague.
 - Player data from the public Sleeper API.
@@ -36,28 +38,28 @@ themselves, so it cannot drift from the code.
 
 ## Kinds
 
-- **identity** â€” the canonical player universe; everything joins to it
-- **projection** â€” forecast production, which we score ourselves
-- **market** â€” where players are actually drafted, across many drafts
-- **platform** â€” one platform's own ADP *and* its own ranking list; the
+- **identity** — the canonical player universe; everything joins to it
+- **projection** — forecast production, which we score ourselves
+- **market** — where players are actually drafted, across many drafts
+- **platform** — one platform's own ADP *and* its own ranking list; the
   difference between those two is what predicts a specific room
-- **expert** â€” published rankings and the spread of disagreement
-- **buzz** â€” what the rooms are reacting to right now; never scored
-- **crosswalk** â€” id mapping between sources
-- **league** â€” one specific league's own settings, so nobody retypes them
+- **expert** — published rankings and the spread of disagreement
+- **buzz** — what the rooms are reacting to right now; never scored
+- **crosswalk** — id mapping between sources
+- **league** — one specific league's own settings, so nobody retypes them
 
 ## Not used, and why
 
-- **FantasyPros** â€” their terms do not permit a published aggregator.
+- **FantasyPros** — their terms do not permit a published aggregator.
   Boris Chen's tiers are expert-derived and openly published, so that is
   the expert signal we use instead.
-- **NFL.com** â€” api.fantasy.nfl.com is dead (404 on every historical
+- **NFL.com** — api.fantasy.nfl.com is dead (404 on every historical
   path, verified 2026-08-20).
-- **Pro Football Focus** â€” their fantasy projections and rankings sit
+- **Pro Football Focus** — their fantasy projections and rankings sit
   behind a PFF+ subscription. Paywalled content is a firmer no than
   FantasyPros, not a softer one. The crosswalk does carry a `pff_id`,
   so a list a subscriber exports for themselves can be pasted in
   through /api/rankings and joins like any other list.
-- **Underdog** â€” their stats host serves best-ball ADP openly, but
+- **Underdog** — their stats host serves best-ball ADP openly, but
   best-ball prices skew snake-draft advice (late-QB, upside-weighted)
   and the crosswalk has no Underdog id. Deferred, not rejected.

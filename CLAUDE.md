@@ -60,8 +60,15 @@ ESPN, Yahoo, CBS, MyFantasyLeague, Boris Chen tiers, and the DynastyProcess ID
 crosswalk — all free and no-auth. `docs/data-sources.md` is generated from the adapters
 and is the list of record.
 
-**Off limits, and stay that way**: FantasyPros (their terms forbid a published
-aggregator) and Pro Football Focus (subscriber-only, which is a firmer no, not a softer
-one). The route for anything paywalled is `/api/rankings` — the user pastes a list they
+**Off limits**: Pro Football Focus — subscriber-only, so there is no way to fetch it
+that is not using somebody else's login.
+
+FantasyPros was on that list until 2026-09-01 and was removed at the owner's direction;
+an adapter for it is planned. Their terms are aimed at *published aggregators*, so keep
+that distinction live rather than treating the rule as simply gone: one drafter reading
+a list on their own machine is not the case those terms describe, and the Fly.io
+instance serving friends is. Answer that question before the adapter ships, not after.
+
+The route for anything paywalled remains `/api/rankings` — the user pastes a list they
 have their own access to, and it joins the published ones. Credit FFC and Boris Chen
 visibly.

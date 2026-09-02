@@ -31,6 +31,7 @@ def players(
         scoring_preset=scoring,
         overrides_path=_OVERRIDES,
         custom_ranks=repo.custom_ranks_for_pool(request.app.state.db, user.user_id),
+        custom_weights=repo.custom_rank_weights(request.app.state.db, user.user_id),
     )
     return {
         "players": [p.model_dump() for p in result.players],

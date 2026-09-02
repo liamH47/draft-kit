@@ -97,6 +97,7 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
         "espn_league": {"season": 2026, "league_id": "1234567"},
         "espn_projections": {"season": 2026},
         "cbs_rankings": {"format": "ppr"},
+        "fantasypros": {"format": "half_ppr"},
         "yahoo_adp": {"start": 0},
         "mfl_adp": {"format": "half_ppr", "year": 2026},
         "sleeper_trending": {"kind": "add"},
@@ -104,3 +105,40 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
     for info in registry.all_sources():
         dataset, _ = store.get(info.module, params[info.name])
         assert dataset.rows, f"{info.name} parsed no rows"
+
+
+def test_every_registered_source_is_warmed_before_a_draft():
+    """The registry auto-discovers adapters; the warm script does not.
+
+    scripts/warm_snapshots.py carries a hand-written job list, so a new source
+    is discovered by the registry (and appears in the docs) while being absent
+    from the warm — and that gap only shows up on draft morning. draftday mode
+    warms every source and then pins to disk with DRAFTKIT_OFFLINE=1; a source
+    that was never warmed has no snapshot to be pinned to, so the first board
+    read of the draft goes to the network with a pick clock running.
+
+    Matching on the imported module names rather than on the jobs list itself,
+    because the list is built at runtime from league team counts.
+    """
+    import ast
+    from pathlib import Path
+
+    import draftkit.sources.registry as registry_module
+
+    script = Path(registry_module.__file__).parent.parent.parent.parent / "scripts"
+    tree = ast.parse((script / "warm_snapshots.py").read_text(encoding="utf-8"))
+    imported = {
+        alias.name
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module == "draftkit.sources"
+        for alias in node.names
+    }
+    # The registry keys by adapter `name`; the warm script imports by MODULE.
+    modules = {info.module.__name__.rsplit(".", 1)[-1] for info in registry.all_sources()}
+    # espn_league is a per-league settings read, not a pre-draft feed: it is
+    # fetched by the import endpoint on demand and has nothing to warm.
+    missing = modules - imported - {"espn_league"}
+    assert not missing, (
+        f"these sources are registered but never warmed: {sorted(missing)} — "
+        "add them to the jobs list in scripts/warm_snapshots.py"
+    )

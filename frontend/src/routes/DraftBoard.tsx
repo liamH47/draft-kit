@@ -9,13 +9,16 @@ import { QuickEntry } from '../components/QuickEntry'
 import { RecommendationPanel } from '../components/RecommendationPanel'
 import { RosterGrid } from '../components/RosterGrid'
 import { SnakeBoard } from '../components/SnakeBoard'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useBoard, useDraftActions, useSessionEvents } from '../state/useBoard'
+import { useMyList } from '../state/useMyList'
 
 export function DraftBoard() {
   const sessionId = Number(useParams().sessionId)
   const navigate = useNavigate()
   const { data: board, isLoading, error } = useBoard(sessionId)
   useSessionEvents(sessionId)
+  const myList = useMyList()
   const { draft, correct, undo, tag, notice, clearNotice } = useDraftActions(sessionId)
   const [position, setPosition] = useState('ALL')
 
@@ -90,6 +93,7 @@ export function DraftBoard() {
           <Link to="/" title="League settings — change parameters or set up a new league">
             settings
           </Link>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -136,7 +140,7 @@ export function DraftBoard() {
       <div className="columns">
         <section className="pool-pane">
           <PositionFilter value={position} onChange={setPosition} />
-          <PlayerTable players={filtered} onDraft={onDraft} onTag={onTag} />
+          <PlayerTable players={filtered} onDraft={onDraft} onTag={onTag} myList={myList} />
         </section>
 
         <aside className="side-pane">

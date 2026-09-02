@@ -17,6 +17,11 @@ _URL_TO_FIXTURE = [
     ("fftiers", FIXTURES / "borischen" / "weekly-ALL-HALF-PPR.csv", "text/csv"),
     ("db_playerids", FIXTURES / "dp" / "db_playerids.csv", "text/plain"),
     ("cbssports", FIXTURES / "cbs" / "rankings.json", "application/json"),
+    (
+        "fantasypros",
+        FIXTURES / "fantasypros" / "half_ppr_cheatsheet.html",
+        "text/html; charset=UTF-8",
+    ),
     ("pub-api-ro", FIXTURES / "yahoo" / "draft_analysis.json", "application/json"),
     ("myfantasyleague", FIXTURES / "mfl" / "adp.json", "application/json"),
     ("/leagues/", FIXTURES / "espn" / "league_settings.json", "application/json"),

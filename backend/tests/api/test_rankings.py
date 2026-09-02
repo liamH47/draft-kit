@@ -53,7 +53,14 @@ def test_a_pasted_list_resolves_and_comes_back_with_its_misses(tmp_path, fixture
 
     summary = client.get("/api/rankings").json()["lists"]
     assert summary == [
-        {"list_name": "my-guys", "total": 4, "matched": 3, "updated_at": rows[0]["updated_at"]}
+        {
+            "list_name": "my-guys",
+            "total": 4,
+            "matched": 3,
+            "updated_at": rows[0]["updated_at"],
+            # A fresh list counts level with ESPN and CBS until told otherwise.
+            "weight": 1.0,
+        }
     ]
 
 
@@ -205,3 +212,123 @@ def test_a_list_still_imports_when_the_crosswalk_is_unavailable(tmp_path):
 
     client = make_client(tmp_path, fetch)
     assert client.put("/api/rankings/mine", json={"text": PASTE}).json()["matched"] == 3
+
+
+# --- how far you trust a list -----------------------------------------------
+#
+# The default is "as much as ESPN". These cover the two ends of moving it: a
+# list you trust more than the published ones, and one you want to SEE without
+# letting it vote. Both must reach the consensus column and neither may reach
+# the score.
+
+
+def _consensus(client, name="Christian McCaffrey"):
+    return {p["name"]: p for p in client.get("/api/players").json()["players"]}[name]
+
+
+def test_weighting_a_list_up_pulls_the_consensus_toward_it(tmp_path, fixture_fetcher):
+    """The point of the feature: a list you trust more than ESPN's should move
+    the number the board shows itself against, by the amount you said."""
+    client = make_client(tmp_path, fixture_fetcher)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    level = _consensus(client)["consensus_rank"]
+
+    resp = client.patch("/api/rankings/mine", json={"weight": 8})
+    assert resp.status_code == 200
+    assert resp.json() == {"name": "mine", "weight": 8.0, "rows": 3}
+
+    heavy = _consensus(client)
+    # The list has him at 1, so leaning on it can only pull the consensus down
+    # toward 1 — and it must actually move, not merely be allowed to.
+    assert heavy["rank_by_source"]["custom:mine"] == 1
+    assert heavy["consensus_rank"] < level
+    assert client.get("/api/rankings").json()["lists"][0]["weight"] == 8.0
+
+
+def test_weight_zero_shows_a_list_without_letting_it_vote(tmp_path, fixture_fetcher):
+    """The other end: keep the column, drop the vote. A list at 0 must leave
+    the consensus exactly where it was before the list existed."""
+    client = make_client(tmp_path, fixture_fetcher)
+    without = _consensus(client)["consensus_rank"]
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    assert _consensus(client)["consensus_rank"] != without
+
+    client.patch("/api/rankings/mine", json={"weight": 0})
+    silenced = _consensus(client)
+    assert silenced["consensus_rank"] == without
+    # Still there to read — silenced is not deleted.
+    assert silenced["rank_by_source"]["custom:mine"] == 1
+
+
+def test_reweighting_shows_up_on_the_board_immediately(tmp_path, fixture_fetcher):
+    """Same trap as an import: the pool caches per configuration, and a weight
+    is part of that configuration. Without a cache clear the new weight would
+    arrive five minutes into the draft."""
+    client = make_client(tmp_path, fixture_fetcher)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    before = _consensus(client)["consensus_rank"]
+    client.patch("/api/rankings/mine", json={"weight": 10})
+    assert _consensus(client)["consensus_rank"] != before
+
+
+def test_weight_never_reaches_the_score_or_the_room_forecast(tmp_path, fixture_fetcher):
+    """Trusting a list harder does not make the ROOM follow it, and a ranking
+    is not a projection. Only the consensus display may move."""
+    client = make_client(tmp_path, fixture_fetcher)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    before = _consensus(client)
+    client.patch("/api/rankings/mine", json={"weight": 10})
+    after = _consensus(client)
+    assert after["consensus_rank"] != before["consensus_rank"]
+    assert after["value"] == before["value"]
+    assert after["rank"] == before["rank"]
+    assert after["adp"] == before["adp"]
+
+
+def test_a_repaste_keeps_the_weight_you_set(tmp_path, fixture_fetcher):
+    """Re-pasting means the publisher updated the list, not that you stopped
+    trusting it. Resetting the weight here would be silent."""
+    client = make_client(tmp_path, fixture_fetcher)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    client.patch("/api/rankings/mine", json={"weight": 3})
+    assert client.put("/api/rankings/mine", json={"text": PASTE}).json()["weight"] == 3.0
+    assert client.get("/api/rankings").json()["lists"][0]["weight"] == 3.0
+
+
+def test_reweighting_a_list_that_is_not_there_says_so(tmp_path, fixture_fetcher):
+    """A typo in the name must not silently do nothing."""
+    client = make_client(tmp_path, fixture_fetcher)
+    assert client.patch("/api/rankings/nope", json={"weight": 2}).status_code == 404
+
+
+def test_a_weight_outside_the_band_is_refused(tmp_path, fixture_fetcher):
+    client = make_client(tmp_path, fixture_fetcher)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    for bad in (-1, 10.5):
+        assert client.patch("/api/rankings/mine", json={"weight": bad}).status_code == 422, bad
+
+
+def test_the_weight_survives_the_mirror(tmp_path, fixture_fetcher):
+    """The file beside the database is the recovery path, so it has to carry
+    the weight too — otherwise restoring quietly hands every list back at 1."""
+    app = create_app(Settings(data_dir=tmp_path / "data"))
+    app.state.snapshot_store = SnapshotStore(tmp_path / "data" / "snapshots", fixture_fetcher)
+    client = TestClient(app)
+    client.put("/api/rankings/mine", json={"text": PASTE})
+    client.patch("/api/rankings/mine", json={"weight": 4})
+    app.state.db.execute("DELETE FROM custom_ranking")
+    app.state.db.commit()
+
+    client.post("/api/rankings/restore")
+    assert client.get("/api/rankings").json()["lists"][0]["weight"] == 4.0
+
+
+def test_a_mirror_written_before_weights_existed_restores_at_the_default(tmp_path, fixture_fetcher):
+    """Somebody's rankings.json predates this column. It must still restore."""
+    client = make_client(tmp_path, fixture_fetcher)
+    mirror = tmp_path / "data" / "rankings.json"
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    row = {"rank": 1, "player_id": "4034", "source_name": "Christian McCaffrey"}
+    mirror.write_text(json.dumps({"old": [row]}), encoding="utf-8")
+    assert client.post("/api/rankings/restore").json()["restored"] == 1
+    assert client.get("/api/rankings").json()["lists"][0]["weight"] == 1.0

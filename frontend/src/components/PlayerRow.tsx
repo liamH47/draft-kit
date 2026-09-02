@@ -1,5 +1,5 @@
 import type { PoolPlayer, Tag } from '../api/types'
-import { adpLabel } from '../lib/format'
+import { adpLabel, sourceLabel } from '../lib/format'
 
 const TAGS: { value: Tag; label: string; title: string }[] = [
   { value: 'target', label: 'T', title: 'Target — take him ahead of ADP' },
@@ -13,6 +13,37 @@ type Props = {
   onTag?: (playerId: string, tag: Tag | null) => void
   /** First row of a new tier group (single-position view): draws the border. */
   tierBreak?: boolean
+  /** rank_by_source key the XR column reads — a pasted list ("custom:XR") or
+   *  a published feed ("fantasypros"). Null when the board shows no column. */
+  myList?: string | null
+}
+
+/** Where your own list has him, verbatim.
+ *
+ *  Separate from Consensus on purpose: consensus is a blend, and a blend that
+ *  has been nudged toward one list still hides what that list actually said.
+ *  If you imported a cheat sheet because you trust it, the number you want to
+ *  see is its number.
+ */
+function MyListCell({ player, list }: { player: PoolPlayer; list: string }) {
+  const rank = player.rank_by_source[list]
+  if (rank === undefined)
+    return (
+      <td className="num muted" title={`${sourceLabel(list)} does not rank him`}>
+        —
+      </td>
+    )
+  const diff = rank - player.rank
+  const disagree = Math.abs(diff) >= 15
+  return (
+    <td
+      className={disagree ? 'num my-list disagree' : 'num my-list'}
+      title={`${sourceLabel(list)} has him at ${rank}; this board has him ${player.rank}`}
+    >
+      {'#'}
+      {rank.toFixed(0)}
+    </td>
+  )
 }
 
 // The model disagreeing hard with the room's consensus should be visible,
@@ -129,7 +160,7 @@ function Flags({ player }: { player: PoolPlayer }) {
   )
 }
 
-export function PlayerRow({ player, onDraft, onTag, tierBreak }: Props) {
+export function PlayerRow({ player, onDraft, onTag, tierBreak, myList }: Props) {
   const adp = adpLabel(player)
   const rowClass =
     [player.tag ? `tag-${player.tag}` : '', tierBreak ? 'tier-break' : '']
@@ -170,6 +201,7 @@ export function PlayerRow({ player, onDraft, onTag, tierBreak }: Props) {
         )}
       </td>
       <ConsensusCell player={player} />
+      {myList && <MyListCell player={player} list={myList} />}
       {onTag && (
         <td className="tags">
           {TAGS.map((t) => (

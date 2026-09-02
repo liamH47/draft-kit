@@ -45,7 +45,32 @@ def blend_adp(adp_by_source: dict[str, float], weights: dict[str, float]) -> flo
 # How much each ranking list counts toward the consensus a player is shown
 # against. Platform lists (the orders rooms actually draft off) carry full
 # weight; Boris Chen's expert rank is deliberately held at half weight.
-CONSENSUS_WEIGHTS = {"espn": 1.0, "cbs": 1.0, "expert": 0.5}
+#
+# FantasyPros sits at full weight and is the one expert list that earns it:
+# ECR is an average of a hundred-odd analysts and is the board a large share
+# of rooms actually anchor to, which is what this column is trying to measure.
+# Note it and Boris Chen are not independent — Chen clusters an expert
+# consensus of his own — so between them they are two readings of one opinion,
+# which is why the pair is not allowed to outweigh the platform lists.
+CONSENSUS_WEIGHTS = {"espn": 1.0, "cbs": 1.0, "expert": 0.5, "fantasypros": 1.0}
+
+# Namespace for a user's own pasted lists inside rank_by_source, so a list
+# called "espn" cannot quietly overwrite the feed of the same name.
+CUSTOM_PREFIX = "custom:"
+
+
+def consensus_weights(custom: dict[str, float] | None = None) -> dict[str, float]:
+    """The published weights, plus whatever the user set on their own lists.
+
+    A pasted list defaults to 1.0 — level with ESPN and CBS — and the user can
+    push it above them or drop it to 0. That only moves the consensus number,
+    which is a display: it exists so a disagreement between this board and the
+    room is visible. It is deliberately NOT applied to list_vs_market, which
+    predicts where a room will take a player — trusting a list harder does not
+    make the room follow it, so weighting one there would forecast a room that
+    does not exist.
+    """
+    return {**CONSENSUS_WEIGHTS, **{f"{CUSTOM_PREFIX}{k}": v for k, v in (custom or {}).items()}}
 
 
 def consensus_rank(

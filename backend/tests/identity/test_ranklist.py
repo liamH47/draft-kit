@@ -135,3 +135,30 @@ def test_the_position_is_taken_from_a_cell_before_the_name_tail():
     and the tail is not double-consumed."""
     (row,) = parse_ranking_text("1,Justin Jefferson WR,WR,MIN")
     assert (row.name, row.position, row.team) == ("Justin Jefferson", "WR", "MIN")
+
+
+def test_a_team_in_brackets_is_metadata_not_part_of_the_name():
+    """ "Jahmyr Gibbs (DET)" is how most on-page draft boards render a row, and
+    it is the shape that fails worst: glued onto the name it loses the team AND
+    the player, so every single row of such a list comes back unmatched."""
+    for text in (
+        "1  Jahmyr Gibbs (DET)  RB1",
+        "1\tJahmyr Gibbs (DET)\tRB1",
+        "1 Jahmyr Gibbs (DET) RB1",
+        "1 | Jahmyr Gibbs | (DET) | RB1",
+        "1  Jahmyr Gibbs [DET]  RB1",
+    ):
+        (row,) = parse_ranking_text(text)
+        assert (row.name, row.position, row.team) == ("Jahmyr Gibbs", "RB", "DET"), text
+
+
+def test_a_bracketed_board_carries_its_bye_column_and_its_defenses():
+    """The same boards put a bye week in the last column and spell a defense
+    out in full. Neither may cost the row."""
+    rows = parse_ranking_text(
+        "170\tJerry Jeudy (CLE)\tWR63\t11\n171\tPhiladelphia Eagles (PHI)\tDST5\t10"
+    )
+    assert [(r.rank, r.name, r.position, r.team) for r in rows] == [
+        (170, "Jerry Jeudy", "WR", "CLE"),
+        (171, "Philadelphia Eagles", "DEF", "PHI"),
+    ]

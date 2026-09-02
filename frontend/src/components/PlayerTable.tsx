@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import type { PoolPlayer, Tag } from '../api/types'
+import { sourceLabel } from '../lib/format'
 import { PlayerRow } from './PlayerRow'
 
 type Props = {
@@ -8,36 +9,65 @@ type Props = {
   onDraft?: (playerId: string, isMine: boolean | null, name?: string) => void
   onTag?: (playerId: string, tag: Tag | null) => void
   limit?: number
+  /** rank_by_source key for the XR column — a pasted list ("custom:XR") or a
+   *  published feed ("fantasypros"). The column hides itself when nothing in
+   *  the pool carries that key, so a source that failed to fetch costs a
+   *  column rather than showing a screenful of dashes. */
+  myList?: string | null
 }
 
 // 'value' is the server's order: the same measure the recommendation score
 // is built on — it tracks ADP roughly while keeping the model's opinion.
 // The others are one click away; nulls sort last.
-type SortKey = 'value' | 'vona' | 'adp' | 'consensus_rank'
+type SortKey = 'value' | 'vona' | 'adp' | 'consensus_rank' | 'my_list'
 
-const SORTS: Record<SortKey, (a: PoolPlayer, b: PoolPlayer) => number> = {
+const SORTS: Record<Exclude<SortKey, 'my_list'>, (a: PoolPlayer, b: PoolPlayer) => number> = {
   value: (a, b) => a.rank - b.rank,
   vona: (a, b) => (b.vona ?? -Infinity) - (a.vona ?? -Infinity),
   adp: (a, b) => (a.adp ?? Infinity) - (b.adp ?? Infinity),
   consensus_rank: (a, b) => (a.consensus_rank ?? Infinity) - (b.consensus_rank ?? Infinity),
 }
 
-export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
+/** Sorting by your own list is the whole point of importing one: it turns the
+ *  board into that cheat sheet's order with every column of this one beside
+ *  it. Players the list never ranked sort last rather than to the top. */
+const byMyList = (list: string) => (a: PoolPlayer, b: PoolPlayer) =>
+  (a.rank_by_source[list] ?? Infinity) - (b.rank_by_source[list] ?? Infinity)
+
+export function PlayerTable({ players, onDraft, onTag, limit = 200, myList }: Props) {
   const [sort, setSort] = useState<SortKey>('value')
-  const sorted = useMemo(() => [...players].sort(SORTS[sort]), [players, sort])
+  // A source nobody in the pool carries gets no column: the feed may have
+  // failed, and a column of dashes reads as "he is unranked" rather than as
+  // "this source is missing".
+  const column = useMemo(
+    () => (myList && players.some((p) => myList in p.rank_by_source) ? myList : null),
+    [myList, players],
+  )
+  // Deleting the list you were sorting by must not leave the board in an
+  // order nothing can produce; fall back to the default silently.
+  const active: SortKey = sort === 'my_list' && !column ? 'value' : sort
+  const sorted = useMemo(
+    () =>
+      [...players].sort(
+        active === 'my_list' ? byMyList(column as string) : SORTS[active],
+      ),
+    [players, active, column],
+  )
   // A tier border between groups only means something when the rows are one
   // position in tier order — interleaved positions would draw noise.
   const showTierBreaks =
-    sort === 'value' && sorted.length > 0 && sorted.every((p) => p.position === sorted[0].position)
+    active === 'value' &&
+    sorted.length > 0 &&
+    sorted.every((p) => p.position === sorted[0].position)
 
   const sortable = (key: SortKey, label: string, title?: string) => (
     <th
       title={title ?? `Sort by ${label}; click again for the default order`}
-      className={sort === key ? 'sortable on' : 'sortable'}
-      onClick={() => setSort(sort === key ? 'value' : key)}
+      className={active === key ? 'sortable on' : 'sortable'}
+      onClick={() => setSort(active === key ? 'value' : key)}
     >
       {label}
-      {sort === key ? ' ▾' : ''}
+      {active === key ? ' ▾' : ''}
     </th>
   )
 
@@ -69,6 +99,15 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
             'Consensus',
             'Average rank across public ranking lists — #1 is best. ↑/↓ marks where this board disagrees hard: an edge or a data problem, you decide. Click sorts by it.',
           )}
+          {/* A fixed label rather than the list's name: "XR" stays the same
+              width and the same place on the board whatever the list is
+              called, and the header's tooltip says which list is in it. */}
+          {column &&
+            sortable(
+              'my_list',
+              'XR',
+              `XR — ${sourceLabel(column)}, verbatim, #1 is best. Click sorts the whole board into its order.`,
+            )}
           {onTag && <th>Tags</th>}
           {onDraft && <th />}
         </tr>
@@ -80,6 +119,7 @@ export function PlayerTable({ players, onDraft, onTag, limit = 200 }: Props) {
             player={p}
             onDraft={onDraft}
             onTag={onTag}
+            myList={column}
             tierBreak={
               showTierBreaks && i > 0 && p.tier !== null && p.tier !== sorted[i - 1].tier
             }

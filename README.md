@@ -143,6 +143,16 @@ published lists in the consensus rank. Names it could not match are reported rat
 than dropped, because a list that quietly arrives short is the failure you discover in
 round four.
 
+Each list carries a **weight** — a ratio against the published lists, which sit at 1
+(ESPN, CBS) and 0.5 (Boris Chen). Raise it for a list you trust more than theirs, or
+drop it to 0 to keep the list on screen without letting it vote. Weight moves the
+Consensus column and nothing else: a ranking predicts who a room takes, so trusting one
+harder cannot make the room follow it, and it never touches the value score.
+
+Whichever list you weight highest also gets a **column of its own** on the board, headed
+by its name and showing its rank verbatim — click it to sort the whole board into that
+cheat sheet's order, with every column of this one beside it.
+
 ### Rankings vs ADP
 
 The app keeps two different things apart on purpose. **ADP** is where players actually

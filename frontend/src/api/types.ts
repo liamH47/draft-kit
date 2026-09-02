@@ -27,7 +27,12 @@ export type PoolPlayer = {
   tier: number | null
   // Average rank across public ranking lists (ESPN, CBS, Boris Chen, your
   // pasted lists) - #1 is best. Display only; never feeds the score.
+  // Each list counts by its weight; your own default to 1, level with ESPN.
   consensus_rank: number | null
+  // Where each ranking list puts him, before they are blended. Your own lists
+  // are namespaced "custom:<name>" so one called "espn" cannot shadow the feed.
+  // This is what the board's own list column reads.
+  rank_by_source: Record<string, number>
   // Places between where the room drafts him and where we rate him: positive
   // means he lasts past his worth.
   market_edge: number | null
@@ -104,6 +109,10 @@ export type RankingList = {
   total: number
   matched: number
   updated_at: string
+  /** How far this list counts inside the consensus rank. 1 is level with
+   *  ESPN and CBS; 0 keeps the column and drops the vote. Never touches the
+   *  score - a ranking predicts who gets taken, not who is good. */
+  weight: number
 }
 
 export type RankingImport = {
@@ -111,6 +120,7 @@ export type RankingImport = {
   total: number
   matched: number
   unmatched: string[]
+  weight: number
 }
 
 export type DraftedPlayer = PoolPlayer & {

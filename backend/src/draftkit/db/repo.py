@@ -266,12 +266,18 @@ def replace_ranking_list(
     rows: list[dict[str, Any]],
     *,
     user_id: str,
+    weight: float = 1.0,
 ) -> int:
     """Store a pasted list, replacing any previous paste under that name.
 
     Wholesale replacement rather than a merge: re-pasting a list means the
     publisher updated it, and a merge would leave last week's players sitting
     at ranks the new list no longer has.
+
+    The weight is the list's, not the row's, and is written onto every row —
+    see the migration for why it lives there. Callers who are replacing an
+    existing list are responsible for reading its weight first; a re-paste of
+    an updated cheat sheet must not quietly reset how far you trust it.
     """
     now = _now()
     with conn:
@@ -281,8 +287,9 @@ def replace_ranking_list(
         )
         conn.executemany(
             """INSERT INTO custom_ranking
-                 (user_id, list_name, rank, player_id, source_name, position, team, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                 (user_id, list_name, rank, player_id, source_name, position,
+                  team, updated_at, weight)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     user_id,
@@ -293,6 +300,7 @@ def replace_ranking_list(
                     row.get("position"),
                     row.get("team"),
                     now,
+                    weight,
                 )
                 for row in rows
             ],
@@ -328,7 +336,8 @@ def ranking_list_summaries(conn: sqlite3.Connection, user_id: str) -> list[dict]
         """SELECT list_name,
                   COUNT(*) AS total,
                   COUNT(player_id) AS matched,
-                  MAX(updated_at) AS updated_at
+                  MAX(updated_at) AS updated_at,
+                  MAX(weight) AS weight
            FROM custom_ranking WHERE user_id = ?
            GROUP BY list_name ORDER BY list_name""",
         (user_id,),
@@ -349,6 +358,40 @@ def custom_ranks_for_pool(conn: sqlite3.Connection, user_id: str) -> dict[str, d
         if ranks:
             out[list_name] = ranks
     return out
+
+
+def get_ranking_weight(conn: sqlite3.Connection, list_name: str, *, user_id: str) -> float:
+    """How far the user trusts one list. 1.0 for a list that does not exist,
+    which is the same answer as a list nobody has weighted — either way the
+    caller is about to write a list that counts level with the published
+    ones."""
+    row = conn.execute(
+        "SELECT MAX(weight) AS weight FROM custom_ranking WHERE user_id = ? AND list_name = ?",
+        (user_id, list_name),
+    ).fetchone()
+    return 1.0 if row is None or row["weight"] is None else float(row["weight"])
+
+
+def set_ranking_weight(
+    conn: sqlite3.Connection, list_name: str, weight: float, *, user_id: str
+) -> int:
+    """Reweight a list in place. Returns rows touched, so a caller can tell a
+    reweight from a request naming a list that is not there."""
+    with conn:
+        cur = conn.execute(
+            "UPDATE custom_ranking SET weight = ? WHERE user_id = ? AND list_name = ?",
+            (weight, user_id, list_name),
+        )
+    return cur.rowcount
+
+
+def custom_rank_weights(conn: sqlite3.Connection, user_id: str) -> dict[str, float]:
+    """List name -> weight, the shape the pool wants beside custom_ranks_for_pool.
+
+    Every list is here, including ones where nothing resolved; the pool only
+    consults the weight of a list it actually joined.
+    """
+    return {r["list_name"]: float(r["weight"]) for r in ranking_list_summaries(conn, user_id)}
 
 
 def delete_ranking_list(conn: sqlite3.Connection, list_name: str, *, user_id: str) -> int:

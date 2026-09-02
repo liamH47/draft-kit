@@ -77,3 +77,10 @@ export function searchPlayers(
   hits.sort((a, b) => a.score - b.score || a.order - b.order)
   return hits.slice(0, limit).map((h) => h.hit)
 }
+
+/** How to name the source behind the XR column in a tooltip. The column is
+ *  headed XR whatever feeds it, so the tooltip is the only place that says
+ *  whether you are reading your own paste or the live FantasyPros feed. */
+export function sourceLabel(key: string) {
+  return key.startsWith('custom:') ? `your list "${key.slice(7)}"` : 'FantasyPros ECR'
+}

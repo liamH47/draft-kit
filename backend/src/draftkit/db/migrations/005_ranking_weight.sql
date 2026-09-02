@@ -1,0 +1,17 @@
+-- How much a pasted list counts against the others.
+--
+-- A user brings a list in because they trust it, and some they trust more than
+-- the published ones this app can fetch. Weight is what says so: it scales the
+-- list inside the consensus rank the board shows itself against. 0 means "show
+-- it, do not blend it"; 1 is level with ESPN and CBS.
+--
+-- It never touches the score. A ranking list predicts where a ROOM will take a
+-- player; trusting a list harder does not make the room follow it, so the
+-- list-vs-market nudge stays unweighted and the projections stay untouched.
+--
+-- Stored per row rather than in a table of its own, deliberately: the JSON
+-- mirror beside the database is keyed list name -> rows, and a row-level
+-- column round-trips through it — and through /restore — with no change to
+-- that shape and no second thing to keep in step. One list has one weight;
+-- every writer sets it on every row at once.
+ALTER TABLE custom_ranking ADD COLUMN weight REAL NOT NULL DEFAULT 1.0;

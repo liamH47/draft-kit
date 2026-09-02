@@ -41,6 +41,7 @@ def build_board(
         scoring_preset=scoring_preset,
         overrides_path=_OVERRIDES,
         custom_ranks=repo.custom_ranks_for_pool(conn, session["user_id"]),
+        custom_weights=repo.custom_rank_weights(conn, session["user_id"]),
     )
     picks = repo.live_picks(conn, session["id"])
     tags = repo.get_tags(conn, session["user_id"])

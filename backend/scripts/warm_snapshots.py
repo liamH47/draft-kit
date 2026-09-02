@@ -14,6 +14,7 @@ from draftkit.sources import (
     dp_playerids,
     espn_market,
     espn_projections,
+    fantasypros,
     ffcalc_adp,
     mfl_adp,
     sleeper_players,
@@ -61,6 +62,7 @@ def main() -> int:
         for teams in sorted(league_team_counts()):
             jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
         jobs.append((borischen_tiers, {"format": preset}))
+        jobs.append((fantasypros, {"format": preset}))
         jobs.append((mfl_adp, {"format": preset, "year": season}))
 
     failures = 0
