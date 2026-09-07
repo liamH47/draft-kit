@@ -97,7 +97,7 @@ def test_registry_modules_are_the_ones_the_store_can_fetch(tmp_path, fixture_fet
         "espn_league": {"season": 2026, "league_id": "1234567"},
         "espn_projections": {"season": 2026},
         "cbs_rankings": {"format": "ppr"},
-        "fantasypros": {"format": "half_ppr"},
+        "fantasypros": {"format": "half_ppr", "superflex": False},
         "yahoo_adp": {"start": 0},
         "mfl_adp": {"format": "half_ppr", "year": 2026},
         "sleeper_trending": {"kind": "add"},

@@ -464,3 +464,25 @@ def test_fantasypros_tolerates_a_missing_expert_spread():
     assert row["expert_stdev"] is None
     assert row["expert_best"] is None  # unparseable, not zero
     assert row["expert_worst"] == 90.0
+
+
+def test_fantasypros_serves_a_different_board_for_superflex():
+    """A superflex slot is a second QB in all but name, and the consensus
+    reprices quarterbacks violently for it — Josh Allen sat at ECR 1 on the
+    superflex board and ECR 28 on the 1-QB board of the same date. Serving the
+    1-QB list into a superflex draft is worse than serving none, because it
+    looks authoritative while being wrong about the whole first round."""
+    from draftkit.sources import fantasypros
+
+    for fmt in ("standard", "half_ppr", "ppr"):
+        one_qb = fantasypros.request({"format": fmt}).url
+        superflex = fantasypros.request({"format": fmt, "superflex": True}).url
+        assert one_qb != superflex, fmt
+        assert "superflex" in superflex, fmt
+        assert "superflex" not in one_qb, fmt
+    # Absent or falsey means the ordinary board, so a league saved before
+    # superflex existed keeps reading the list it always read.
+    assert (
+        fantasypros.request({"format": "ppr"}).url
+        == fantasypros.request({"format": "ppr", "superflex": False}).url
+    )

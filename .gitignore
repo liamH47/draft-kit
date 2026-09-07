@@ -1,7 +1,10 @@
 # runtime data (DRAFTKIT_DATA_DIR): the SQLite DB and source snapshots.
 # A tracked live database is a draft-night hazard — never commit it.
 /data/
+# Any data dir, not just the default one: a second instance pointed at
+# backend/data-friend/ slipped 375MB of snapshots past a literal match.
 backend/data/
+backend/data-*/
 
 # python
 __pycache__/

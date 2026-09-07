@@ -39,6 +39,7 @@ ATTRIBUTION = "Expert consensus rankings from FantasyPros."
 NATIVE_ID = "fantasypros_id"
 KIND = "expert"
 PROVIDES = ["rank", "tier", "bye", "expert_rank", "expert_stdev", "expert_best", "expert_worst"]
+# Params: {"format": standard|half_ppr|ppr, "superflex": bool}
 
 name = "fantasypros"
 # Twelve hours, matching the other ranking sources. ECR moves through the day
@@ -53,6 +54,19 @@ _URLS = {
     "ppr": "https://www.fantasypros.com/nfl/rankings/ppr-cheatsheets.php",
 }
 
+# Superflex is not a scoring tweak, it is a different market. A second QB slot
+# makes quarterbacks startable twice over, and the consensus reprices them
+# violently: Josh Allen is ECR 1 on the superflex board and ECR 28 on the
+# 1-QB board of the same date. Serving a 1-QB list into a superflex draft
+# would be worse than serving no list at all, because it looks authoritative.
+_SUPERFLEX_URLS = {
+    "standard": "https://www.fantasypros.com/nfl/rankings/superflex-cheatsheets.php",
+    "half_ppr": (
+        "https://www.fantasypros.com/nfl/rankings/half-point-ppr-superflex-cheatsheets.php"
+    ),
+    "ppr": "https://www.fantasypros.com/nfl/rankings/ppr-superflex-cheatsheets.php",
+}
+
 # The page assigns its whole ranking payload to one variable. Non-greedy up to
 # the terminating semicolon-brace, which is how the page actually writes it.
 _ECR_BLOB = re.compile(r"var\s+ecrData\s*=\s*(\{.*?\});", re.S)
@@ -62,7 +76,8 @@ _POSITIONS = {"DST": "DEF"}
 
 
 def request(params: dict[str, Any]) -> RequestSpec:
-    return RequestSpec(url=_URLS[params.get("format", "half_ppr")])
+    urls = _SUPERFLEX_URLS if params.get("superflex") else _URLS
+    return RequestSpec(url=urls[params.get("format", "half_ppr")])
 
 
 def _blob(raw: RawPayload) -> dict[str, Any]:

@@ -308,7 +308,13 @@ def build_pool(
     }
     fp_by_id: dict[str, dict[str, Any]] = {}
     try:
-        fp_ds, sources["fantasypros"] = store.get(fantasypros, {"format": scoring_preset})
+        # Which FantasyPros board applies is decided by the ROSTER, not the
+        # scoring preset: a superflex slot is a second QB in all but name, and
+        # the consensus prices quarterbacks completely differently for it.
+        fp_ds, sources["fantasypros"] = store.get(
+            fantasypros,
+            {"format": scoring_preset, "superflex": bool(league.roster.superflex)},
+        )
         for row in fp_ds.rows:
             sleeper_id = fp_to_sleeper.get(row["fantasypros_id"])
             if sleeper_id is None and row.get("name"):

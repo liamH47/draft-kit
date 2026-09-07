@@ -62,7 +62,10 @@ def main() -> int:
         for teams in sorted(league_team_counts()):
             jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
         jobs.append((borischen_tiers, {"format": preset}))
-        jobs.append((fantasypros, {"format": preset}))
+        # Both boards: a superflex league reads a different published list,
+        # and which one a user needs is not known until they set their roster.
+        jobs.append((fantasypros, {"format": preset, "superflex": False}))
+        jobs.append((fantasypros, {"format": preset, "superflex": True}))
         jobs.append((mfl_adp, {"format": preset, "year": season}))
 
     failures = 0
