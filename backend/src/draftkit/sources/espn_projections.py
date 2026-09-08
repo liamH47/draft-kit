@@ -57,6 +57,22 @@ _STAT_MAP = {
     "80": "fgm_30_39",
     "85": "fgmiss",
     "86": "xpm",
+    # First downs. ESPN publishes these and we were dropping them, which cost
+    # nothing until a league actually scored them — and then it cost a great
+    # deal quietly, because points here are the MEAN of Sleeper and ESPN. In a
+    # league paying a point per rushing and receiving first down, every back
+    # was landing ~50 points light (half of the ~100 he earns), every receiver
+    # ~38 light, and quarterbacks only ~18 — a systematic tilt AGAINST exactly
+    # the positions the rule rewards. Verified against ESPN's own league UI:
+    # id 211 is Josh Allen's 188 passing first downs to the decimal.
+    #
+    # pass_fd is mapped but carries no default weight, because ESPN's own
+    # projected totals show it is not scored (Matthew Stafford's 204 passing
+    # first downs would put him 200 points above the number ESPN displays).
+    # A league that does score it now only has to set the weight.
+    "211": "pass_fd",
+    "212": "rush_fd",
+    "213": "rec_fd",
 }
 
 

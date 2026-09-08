@@ -27,6 +27,18 @@ const ROSTER_FIELDS: { key: keyof RosterSlots; label: string; hint?: string }[] 
   { key: 'bench', label: 'Bench' },
 ]
 
+// Bonuses a preset cannot express, keyed by the Sleeper stat names the engine
+// scores. First downs are here because a real league had them and nothing in
+// this form could say so: the board then valued every back ~100 points light.
+// Passing first downs are listed separately because leagues that pay for
+// rushing ones very often do NOT pay for these, and lumping them together
+// would hand quarterbacks ~190 points nobody awarded.
+const BONUS_FIELDS: { key: string; label: string; hint: string }[] = [
+  { key: 'rush_fd', label: 'Rush 1st down', hint: 'per first down' },
+  { key: 'rec_fd', label: 'Rec 1st down', hint: 'per first down' },
+  { key: 'pass_fd', label: 'Pass 1st down', hint: 'usually 0' },
+]
+
 const DEFAULT_ROSTER: RosterSlots = {
   qb: 1, rb: 2, wr: 2, te: 1, flex: 1, superflex: 0, k: 1, dst: 1, bench: 6,
 }
@@ -42,10 +54,12 @@ export function SetupWizard() {
     my_slot: 1,
     rounds: 15,
     scoring: 'half_ppr',
+    scoring_overrides: {},
     roster: DEFAULT_ROSTER,
     autodraft_count: 0,
   })
   const [showRoster, setShowRoster] = useState(false)
+  const [showBonus, setShowBonus] = useState(false)
 
   const [espnLeagueId, setEspnLeagueId] = useState('')
   const importEspn = useMutation({
@@ -76,6 +90,18 @@ export function SetupWizard() {
 
   const setSlot = (key: keyof RosterSlots, value: number) =>
     setForm((f) => ({ ...f, roster: { ...f.roster, [key]: Math.max(0, value) } }))
+
+  // A zero is not an override, it is the absence of one — keep it out of the
+  // payload so the preset's own value stands rather than being pinned to 0.
+  const setBonus = (key: string, value: number) =>
+    setForm((f) => {
+      const next = { ...f.scoring_overrides }
+      if (value) next[key] = value
+      else delete next[key]
+      return { ...f, scoring_overrides: next }
+    })
+
+  const bonusCount = Object.keys(form.scoring_overrides).length
 
   // Starting spots drive replacement level, so it is worth showing the user
   // the number the model will actually use.
@@ -165,6 +191,35 @@ export function SetupWizard() {
             </label>
           ))}
         </fieldset>
+
+        <details className="roster-settings" open={showBonus}>
+          <summary onClick={(e) => { e.preventDefault(); setShowBonus((v) => !v) }}>
+            Bonus scoring
+            <span className="summary-note">
+              {bonusCount ? `${bonusCount} set` : 'none'}
+            </span>
+          </summary>
+          <div className="slot-grid">
+            {BONUS_FIELDS.map((field) => (
+              <label key={field.key}>
+                {field.label}
+                <em>{field.hint}</em>
+                <input
+                  type="number"
+                  step="0.5"
+                  min={0}
+                  value={form.scoring_overrides[field.key] ?? 0}
+                  onChange={(e) => setBonus(field.key, Number(e.target.value))}
+                />
+              </label>
+            ))}
+          </div>
+          <p className="slot-help">
+            Check your league's scoring page. A point per rushing and receiving
+            first down is worth ~100 points a season to a workhorse back and
+            only ~30 to a quarterback, so leaving it out tilts the whole board.
+          </p>
+        </details>
 
         <details className="roster-settings" open={showRoster}>
           <summary onClick={(e) => { e.preventDefault(); setShowRoster((v) => !v) }}>

@@ -38,6 +38,11 @@ export type LeagueDraft = {
   my_slot: number
   rounds: number
   scoring: ScoringPreset
+  // Per-stat point values layered over the preset, keyed by Sleeper stat name.
+  // A preset cannot express a league that pays for first downs, and getting it
+  // wrong is not a rounding error: at a point per rushing and receiving first
+  // down a workhorse back earns ~100 extra points a season.
+  scoring_overrides: Record<string, number>
   roster: RosterSlots
   autodraft_count: number
 }
