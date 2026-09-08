@@ -58,6 +58,12 @@ def main() -> int:
     # full walk so an offline draft can read every page the pool will ask for.
     for start in range(0, 400, yahoo_adp.PAGE_SIZE):
         jobs.append((yahoo_adp, {"start": start}))
+    # FFC's two-QB board is a separate market, not a scoring variant of one of
+    # the presets, so it needs its own job — a superflex league reads it INSTEAD
+    # of the preset list. Without this the warm looks complete and the market
+    # goes missing at the one moment the store is pinned offline.
+    for teams in sorted(league_team_counts()):
+        jobs.append((ffcalc_adp, {"format": "2qb", "teams": teams, "year": season}))
     for preset in ("standard", "half_ppr", "ppr"):
         for teams in sorted(league_team_counts()):
             jobs.append((ffcalc_adp, {"format": preset, "teams": teams, "year": season}))
