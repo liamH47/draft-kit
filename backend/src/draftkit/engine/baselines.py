@@ -74,6 +74,25 @@ def _baseline_points(points_desc: list[float], index: int) -> float:
     return points_desc[min(max(index, 0), len(points_desc) - 1)]
 
 
+# Replacement for a position nobody benches is not the last starter — it is
+# whatever is on waivers, and for kickers and defenses that is very nearly as
+# good as the best of them. Twelve teams roster twelve kickers and the other
+# thirty-three sit free, so a manager streams the best matchup every week
+# rather than holding one all season.
+#
+# Measured, this is the board's largest single defect. Baselining kickers and
+# defenses at the last starter put twenty-two of them inside the top 120 and
+# the best at board rank 46 — round four — while expert consensus ranks every
+# one of them past 180. That is what produced a team defense in the engine's
+# top three in round eight of a live draft.
+#
+# Which positions get this treatment is not hard-coded: late_round_positions
+# already states which ones the league believes should wait, and this makes
+# the VALUE arithmetic agree with that stated belief instead of contradicting
+# it. A league that genuinely drafts kickers early can empty the list.
+STREAMED_BASELINE_INDEX = 0
+
+
 def baselines(
     league: LeagueConfig, points_by_position: dict[str, list[float]]
 ) -> dict[str, dict[str, float]]:
@@ -85,8 +104,16 @@ def baselines(
     """
     starters = starters_by_position(league.roster)
     depth = drafted_by_position(league.roster)
+    streamed = set(league.late_round_positions)
     out: dict[str, dict[str, float]] = {}
     for position, points in points_by_position.items():
+        if position in streamed:
+            # Value over "the best one I could stream" — near zero for
+            # everybody, which is what makes these sort to the tail where the
+            # market has always had them.
+            replacement = _baseline_points(points, STREAMED_BASELINE_INDEX)
+            out[position] = {"vols": replacement, "vorp": replacement, "value": replacement}
+            continue
         vols_index = round(league.num_teams * starters.get(position, 0))
         vorp_index = round(league.num_teams * depth.get(position, 0))
         vols = _baseline_points(points, vols_index)
