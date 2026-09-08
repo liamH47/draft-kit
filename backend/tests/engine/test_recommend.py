@@ -342,3 +342,121 @@ def test_a_season_ending_designation_costs_more_than_a_provisional_one():
     by_id = {r.player_id: r for r in out}
     assert "out for the season" in " ".join(by_id["ir"].reasons)
     assert "may not open the season" in " ".join(by_id["pup"].reasons)
+
+
+# --- the consensus anchor ---------------------------------------------------
+#
+# Nothing else in the model compares this board's ORDERING to the published
+# one. The ADP term measures displacement — has he fallen past his price? —
+# which at the top of a draft is near zero for everybody, so a projection
+# artifact at a whole position went unchallenged. In a superflex league the
+# board carried six quarterbacks in its top 24 against consensus' thirteen.
+#
+# These use a roster with no starting slots, so roster need and the must-fill
+# rule are both inert and the anchor is the only thing that can move a score.
+
+
+def anchored(available):
+    return recommend(
+        available,
+        league=league(qb=0, rb=0, wr=0, te=0, flex=0, k=0, dst=0),
+        my_counts={},
+        current_pick=1,
+    )
+
+
+def test_consensus_lifts_a_player_the_published_boards_rate_far_higher():
+    """b's projection puts him fourth; every published list has him second."""
+    out = anchored(
+        [
+            cand("a", "RB", 100, consensus_rank=1.0),
+            cand("b", "WR", 40, consensus_rank=2.0),
+            cand("c", "RB", 90, consensus_rank=3.0),
+            cand("d", "RB", 80, consensus_rank=4.0),
+        ]
+    )
+    scores = {r.player_id: r.score for r in out}
+    # The second-best slot on this board is worth 90; b's own value is 40.
+    assert scores["b"] == pytest.approx(40 + 0.35 * (90 - 40), abs=0.1)
+    reasons = next(r.reasons for r in out if r.player_id == "b")
+    assert any("rate him well above this one" in x for x in reasons)
+
+
+def test_consensus_damps_a_player_this_board_is_alone_on():
+    out = anchored(
+        [
+            cand("a", "RB", 100, consensus_rank=1.0),
+            cand("b", "RB", 90, consensus_rank=40.0),
+            cand("c", "WR", 20, consensus_rank=2.0),
+        ]
+    )
+    scores = {r.player_id: r.score for r in out}
+    # Consensus puts b last of the three, where this board's value is 20.
+    assert scores["b"] == pytest.approx(90 + 0.35 * (20 - 90), abs=0.1)
+    reasons = next(r.reasons for r in out if r.player_id == "b")
+    assert any("this board is alone on him" in x for x in reasons)
+
+
+def test_the_anchor_is_capped_so_a_named_signal_still_wins():
+    """Roster need plus wait cost must be able to outweigh the largest possible
+    pull — otherwise consensus could veto the one case it must never block: a
+    run on quarterbacks in superflex while you still need one."""
+    from draftkit.engine.recommend import CONSENSUS_CAP, NEED_BONUS, SCARCITY_CAP
+
+    # Consensus calls b the best player on the board; this board scores him
+    # zero. An uncapped pull would hand him 175 points on one list's say-so.
+    out = anchored(
+        [
+            cand("a", "RB", 500, consensus_rank=2.0),
+            cand("b", "WR", 0, consensus_rank=1.0),
+        ]
+    )
+    scores = {r.player_id: r.score for r in out}
+    assert scores["b"] == pytest.approx(CONSENSUS_CAP, abs=0.1)
+    assert scores["a"] == pytest.approx(500 - CONSENSUS_CAP, abs=0.1)
+    assert NEED_BONUS + SCARCITY_CAP > CONSENSUS_CAP
+
+
+def test_a_player_no_list_ranks_is_left_alone():
+    """No opinion is not a low opinion."""
+    out = anchored([cand("a", "RB", 100, consensus_rank=1.0), cand("b", "RB", 50)])
+    assert next(r.score for r in out if r.player_id == "b") == pytest.approx(50, abs=0.1)
+
+
+def test_the_anchor_is_inert_when_nothing_carries_a_consensus_rank():
+    out = anchored([cand("a", "RB", 100), cand("b", "RB", 50)])
+    assert [r.score for r in out] == pytest.approx([100, 50], abs=0.1)
+
+
+def test_a_held_back_kicker_is_not_dragged_back_up_the_board():
+    """His score is deliberately not his value, so pulling him toward a
+    consensus that also buries him would just undo the late-round hold."""
+    out = recommend(
+        [
+            cand("k", "K", 5, consensus_rank=1.0),
+            cand("r", "RB", 100, consensus_rank=2.0),
+        ],
+        league=league(),
+        my_counts={},
+        current_pick=1,
+        current_round=1,
+        total_rounds=15,
+    )
+    kicker = next(r for r in out if r.player_id == "k")
+    assert any("wait on K" in x for x in kicker.reasons)
+    assert not any("published boards" in x for x in kicker.reasons)
+    assert out[0].player_id == "r"
+
+
+def test_a_fade_outranks_any_amount_of_consensus_enthusiasm():
+    """A fade is the user saying "not this man". Before the anchor existed a
+    -30 fade left the faded player leading by a single point, which made the
+    veto a coin flip on whatever else the model happened to say that day."""
+    out = anchored(
+        [
+            cand("a", "RB", 100, consensus_rank=1.0, tag="fade"),
+            cand("b", "RB", 10, consensus_rank=2.0),
+        ]
+    )
+    assert out[0].player_id == "b"
+    assert out[-1].player_id == "a"

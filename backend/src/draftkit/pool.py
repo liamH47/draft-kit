@@ -18,6 +18,7 @@ from draftkit.engine.adp import (
     blend_adp,
     consensus_rank,
     consensus_weights,
+    format_ranks,
     list_vs_market,
     sentinel_cutoff,
 )
@@ -48,6 +49,23 @@ _PRESET_TO_SLEEPER_ADP = {
     "half_ppr": "adp_half_ppr",
     "ppr": "adp_ppr",
 }
+
+# A superflex slot does not tweak a market, it replaces it. Sleeper's own
+# two-quarterback ADP puts Josh Allen at 3.4 where its half-PPR list has him at
+# 20.9, and the gap widens down the position: Bo Nix is 47 in superflex and 119
+# in one-quarterback drafts. Every ADP-driven term in the model reads those
+# numbers — the falling/reach bonus, the movement flag, and above all survival,
+# which decides wait cost. Fed a one-QB price, the board concluded that every
+# quarterback would still be sitting there next turn and charged a thirty-point
+# reach penalty to anyone who took one at his real superflex price.
+_SUPERFLEX_SLEEPER_ADP = "adp_2qb"
+_SUPERFLEX_FFC_FORMAT = "2qb"
+
+# Markets with no superflex variant. These are not noisy readings of the right
+# number, they are precise readings of a different game, so in a superflex
+# league they are dropped rather than blended. Sleeper and FFC both publish
+# genuine two-QB ADP, which leaves two independent markets — enough.
+_ONE_QB_ONLY_MARKETS = ("espn", "yahoo", "mfl")
 
 # Yahoo ADP fades out around the top ~275; never walk past this.
 _YAHOO_MAX_START = 400
@@ -159,6 +177,10 @@ def build_pool(
 ) -> PoolResult:
     sources: dict[str, SnapshotMeta] = {}
     custom_ranks = custom_ranks or {}
+    # Decided by the ROSTER, never by the scoring preset: superflex is a slot,
+    # and it changes which market and which consensus board apply.
+    superflex = bool(league.roster.superflex)
+    ffc_format = _SUPERFLEX_FFC_FORMAT if superflex else scoring_preset
     # How far the user trusts each of their own lists, folded in beside the
     # published ones. A list nobody weighted counts level with ESPN and CBS.
     rank_weights = consensus_weights(custom_weights)
@@ -190,7 +212,7 @@ def build_pool(
     ffc_by_id: dict[str, dict[str, Any]] = {}
     try:
         ffc_ds, sources["ffcalc"] = store.get(
-            ffcalc_adp, {"format": scoring_preset, "teams": league.num_teams, "year": season}
+            ffcalc_adp, {"format": ffc_format, "teams": league.num_teams, "year": season}
         )
         raw_adp["ffcalc"] = [float(r["adp"]) for r in ffc_ds.rows if r.get("adp")]
         for row in ffc_ds.rows:
@@ -223,7 +245,7 @@ def build_pool(
 
     adp_before["ffcalc"] = _previous(
         ffcalc_adp,
-        {"format": scoring_preset, "teams": league.num_teams, "year": season},
+        {"format": ffc_format, "teams": league.num_teams, "year": season},
         lambda row: resolver.resolve(row["name"], row["position"], row.get("team")).sleeper_id,
     )
 
@@ -313,7 +335,7 @@ def build_pool(
         # the consensus prices quarterbacks completely differently for it.
         fp_ds, sources["fantasypros"] = store.get(
             fantasypros,
-            {"format": scoring_preset, "superflex": bool(league.roster.superflex)},
+            {"format": scoring_preset, "superflex": superflex},
         )
         for row in fp_ds.rows:
             sleeper_id = fp_to_sleeper.get(row["fantasypros_id"])
@@ -414,7 +436,11 @@ def build_pool(
             break
         adp_before["yahoo"].update(page)
 
-    adp_field = _PRESET_TO_SLEEPER_ADP.get(scoring_preset, "adp_half_ppr")
+    adp_field = (
+        _SUPERFLEX_SLEEPER_ADP
+        if superflex
+        else _PRESET_TO_SLEEPER_ADP.get(scoring_preset, "adp_half_ppr")
+    )
 
     # A league saved before a market existed carries no weight for it, and
     # blend_adp gives an unweighted source weight 1.0 — so MFL would have
@@ -473,7 +499,9 @@ def build_pool(
                 ("yahoo", yahoo.get("adp") if yahoo else None),
                 ("mfl", mfl.get("adp") if mfl else None),
             )
-            if value and float(value) < adp_ceiling.get(source, _MAX_MEANINGFUL_ADP)
+            if value
+            and float(value) < adp_ceiling.get(source, _MAX_MEANINGFUL_ADP)
+            and not (superflex and source in _ONE_QB_ONLY_MARKETS)
         }
 
         # Ranking lists, kept apart from market prices.
@@ -492,6 +520,8 @@ def build_pool(
         for list_name, ranks in custom_ranks.items():
             if player_id in ranks:
                 rank_by_source[f"{CUSTOM_PREFIX}{list_name}"] = ranks[player_id]
+
+        scoped_ranks = format_ranks(rank_by_source, superflex=superflex)
 
         spread = expert or fp
         if spread:
@@ -534,8 +564,10 @@ def build_pool(
                 adp_by_source=adp_by_source,
                 adp_stdev=ffc.get("stdev") if ffc else None,
                 rank_by_source=rank_by_source,
-                list_vs_market=list_vs_market(rank_by_source, blended),
-                consensus_rank=consensus_rank(rank_by_source, rank_weights),
+                # Both derived numbers see only the lists that priced this
+                # format; the raw columns above keep every list, named.
+                list_vs_market=list_vs_market(scoped_ranks, blended),
+                consensus_rank=consensus_rank(scoped_ranks, rank_weights),
                 adp_shift=adp_shift,
                 adp_shift_sources=adp_shift_sources,
                 injury_status=player.get("injury_status"),

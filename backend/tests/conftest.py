@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -35,6 +36,30 @@ def load_fixture(url_fragment: str) -> RawPayload:
         if fragment == url_fragment:
             return RawPayload(body=path.read_bytes(), content_type=content_type)
     raise KeyError(url_fragment)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def settings_ignore_developer_env():
+    """Tests must never read the developer's own .env.
+
+    Settings() loads .env and the DRAFTKIT_ prefix on every construction, so
+    the machine running the suite could change its result. It did: a local
+    DRAFTKIT_STATIC_DIR meant no test ever built an app WITHOUT a frontend
+    mount, which is the default every user runs — the branch went uncovered
+    here and covered in CI, so the 100% gate passed or failed depending on
+    whose laptop it was. The same leak would happily hand a test real ESPN
+    cookies or a real redirect URI.
+    """
+    from draftkit.config import Settings
+
+    original_env_file = Settings.model_config.get("env_file")
+    Settings.model_config["env_file"] = None
+    saved = {k: v for k, v in os.environ.items() if k.startswith("DRAFTKIT_")}
+    for key in saved:
+        del os.environ[key]
+    yield
+    os.environ.update(saved)
+    Settings.model_config["env_file"] = original_env_file
 
 
 @pytest.fixture(autouse=True)

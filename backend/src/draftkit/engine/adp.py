@@ -59,6 +59,27 @@ CONSENSUS_WEIGHTS = {"espn": 1.0, "cbs": 1.0, "expert": 0.5, "fantasypros": 1.0}
 CUSTOM_PREFIX = "custom:"
 
 
+# Ranking lists published only for one-quarterback leagues. ESPN's board, CBS'
+# board and Boris Chen's expert rank are all single-QB orders, and in a
+# superflex league they are not merely imprecise — ESPN has Josh Allen around
+# 19th where the superflex consensus has him 1st. Averaged into a consensus
+# number they outvote the one list that priced the format correctly, two to
+# one, and the result looks authoritative. Only FantasyPros publishes a
+# superflex board here, so in that format it and the user's own pasted lists
+# are the consensus. Applied by filtering rank_by_source before it reaches
+# either derived number, so the raw columns still show on the board — a source
+# the user can see the name of is informative; an average that silently folds
+# three wrong lists into one authoritative-looking number is not.
+ONE_QB_ONLY_LISTS = ("espn", "cbs", "expert")
+
+
+def format_ranks(rank_by_source: dict[str, float], *, superflex: bool) -> dict[str, float]:
+    """The ranking lists that priced THIS format, for the derived numbers."""
+    if not superflex:
+        return rank_by_source
+    return {s: r for s, r in rank_by_source.items() if s not in ONE_QB_ONLY_LISTS}
+
+
 def consensus_weights(custom: dict[str, float] | None = None) -> dict[str, float]:
     """The published weights, plus whatever the user set on their own lists.
 
@@ -76,10 +97,18 @@ def consensus_weights(custom: dict[str, float] | None = None) -> dict[str, float
 def consensus_rank(
     rank_by_source: dict[str, float], weights: dict[str, float] | None = None
 ) -> float | None:
-    """Weighted mean of the ranking lists we hold. Display-only: it exists so
-    the user can SEE when the model disagrees with the room's consensus, and
-    it must never feed the score — ADP already carries the market's opinion,
-    and a second helping would double-count it."""
+    """Weighted mean of the ranking lists we hold.
+
+    Shown so the user can SEE when this board disagrees with the room, and —
+    since the superflex audit — read by the score's consensus anchor as well.
+    That is not the double-count it was once written off as: the ADP term
+    measures DISPLACEMENT, whether a player has fallen past his price, which
+    at the top of a draft is near zero for everybody. Nothing compared the two
+    ORDERINGS, so a whole position could sit twenty ranks off consensus
+    unchallenged. See recommend.CONSENSUS_TRUST for how far it is allowed to
+    pull, and note it is weighted well under half for the reason this
+    docstring originally gave.
+    """
     weights = CONSENSUS_WEIGHTS if weights is None else weights
     if not rank_by_source:
         return None

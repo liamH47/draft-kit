@@ -40,7 +40,17 @@ ADP_REACH_CAP = 30.0
 # constant rather than a signal. This one is zero when the position keeps.
 SCARCITY_PER_POINT = 0.5
 SCARCITY_CAP = 16.0
-TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -30.0}
+# A target is a thumb on the scale — worth more than a full unfilled starting
+# slot, and still losable to a genuinely better player.
+#
+# A fade is not a discount, it is a veto. At -30 it was a discount: on a board
+# whose top spans 250 points it left a faded player leading the
+# recommendations by a single point, and which side of that line he landed on
+# moved every time anything else in the model did. The user saying "not this
+# man" should not be a coin flip, so the fade is deliberately larger than
+# every other term here combined — the same trick LATE_ROUND_PENALTY plays on
+# one position, applied to the whole board.
+TAG_POINTS = {"target": 22.0, "at_adp": 0.0, "fade": -1000.0}
 # Enough to bury a kicker beneath any real contributor without scrambling the
 # ordering among kickers themselves.
 LATE_ROUND_PENALTY = 60.0
@@ -76,6 +86,35 @@ PROVISIONAL_PENALTY = 20.0
 # Questionable and Doubtful are week-to-week noise months before kickoff. They
 # are shown on the board and deliberately never scored.
 
+# How far the score is allowed to sit from the room's consensus without a
+# reason it can name.
+#
+# Nothing else in the model checks the board's ORDERING against the published
+# one. The ADP term measures displacement — has he fallen past his price? — and
+# at the top of a draft that is nearly zero for everyone, so a projection
+# artifact at a whole position went completely unchallenged. In a superflex
+# league the board had six quarterbacks in its top 24 against consensus' 13,
+# and nothing in the score noticed.
+#
+# The correction is deliberately expressed in POINTS AT THAT BOARD SLOT rather
+# than points-per-rank: one rank is worth ~9 points at the top of the board and
+# ~1 point by pick 100, so a flat per-rank rate would overcorrect the tail and
+# barely move the round where it matters. Consensus' opinion is read as "this
+# player belongs in that slot", and the slot's value is what the pull is
+# measured against.
+#
+# TRUST is well under half on purpose. Consensus cannot know this league's
+# scoring — first downs are worth ~33 points of value to an elite back here and
+# ~12 to a quarterback, and a generic board prices none of it. The cap then
+# keeps a nameable signal decisive: roster need (18) plus wait cost (16) still
+# outweighs the largest possible anchor, so the case the anchor must never
+# block — a run on quarterbacks in superflex when you still need one — still
+# gets through.
+CONSENSUS_TRUST = 0.35
+CONSENSUS_CAP = 25.0
+# Below this the gap is ordinary disagreement and saying so would be noise.
+CONSENSUS_REASON_POINTS = 8.0
+
 
 @dataclass
 class Candidate:
@@ -96,6 +135,10 @@ class Candidate:
     vona: float | None = None
     # Sleeper's injury designation, verbatim. See OUT_STATUSES.
     injury_status: str | None = None
+    # Where the published lists put him. Only lists that priced THIS format
+    # reach here — a one-QB board is not a noisy superflex opinion, it is a
+    # confident opinion about a different game.
+    consensus_rank: float | None = None
 
 
 @dataclass
@@ -153,6 +196,26 @@ def _real_starters_filled(my_counts: dict[str, int], league, late_positions: lis
     return skill_have >= skill_slots
 
 
+def _consensus_pull(available: list[Candidate]) -> dict[str, float]:
+    """Points to move each candidate toward where the published lists put him.
+
+    Both orderings are taken over the same cohort — the players still on the
+    board who carry a consensus rank — so the value ladder the pull is read
+    off is the one this board actually offers, and neither ordering is mixed
+    with a subset it was not measured against.
+    """
+    cohort = [c for c in available if c.consensus_rank is not None]
+    if not cohort:
+        return {}
+    # What the Nth-best slot on this board is worth, by the model's own numbers.
+    ladder = sorted((c.vorp for c in cohort), reverse=True)
+    pull: dict[str, float] = {}
+    for slot, c in enumerate(sorted(cohort, key=lambda c: c.consensus_rank or 0.0)):
+        delta = ladder[slot] - c.vorp
+        pull[c.player_id] = max(-CONSENSUS_CAP, min(CONSENSUS_CAP, CONSENSUS_TRUST * delta))
+    return pull
+
+
 def recommend(
     available: list[Candidate],
     *,
@@ -196,6 +259,8 @@ def recommend(
         if slots > my_counts.get(pos, 0)
     }
     must_fill = bool(shortfall) and sum(shortfall.values()) >= rounds_left
+
+    consensus_pull = _consensus_pull(available)
 
     out: list[Recommendation] = []
     for c in available:
@@ -294,6 +359,26 @@ def recommend(
                 reasons.append(
                     f"the lists are cold on him — ranked ~{abs(c.list_vs_market):.0f} "
                     "picks below his market price"
+                )
+
+        # Where this board disagrees with the room, and by how much. Held-back
+        # players are exempt: their score is deliberately not their value, so
+        # pulling them toward a consensus that also buries them is noise.
+        # Tagged players are NOT exempt — the pull depends only on his value
+        # and his consensus rank, neither of which a tag changes, so applying
+        # it to everyone is what keeps a tag worth exactly its face value.
+        pull = 0.0 if held_back else consensus_pull.get(c.player_id, 0.0)
+        if pull:
+            score += pull
+            if pull >= CONSENSUS_REASON_POINTS:
+                reasons.append(
+                    "the published boards rate him well above this one — "
+                    "consensus has him going considerably earlier"
+                )
+            elif pull <= -CONSENSUS_REASON_POINTS:
+                reasons.append(
+                    "this board is alone on him — the published boards have him "
+                    "meaningfully later, so the edge here is a projection call"
                 )
 
         if c.tag:

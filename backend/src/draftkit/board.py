@@ -113,6 +113,7 @@ def build_board(
                 tag=tag_row.get("tag"),
                 list_vs_market=player.list_vs_market,
                 injury_status=player.injury_status,
+                consensus_rank=player.consensus_rank,
             )
         )
 

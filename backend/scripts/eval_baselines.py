@@ -76,9 +76,100 @@ def ecr_mix(players, cutoffs=(36, 60, 120)) -> dict[int, dict[str, int]]:
     return out
 
 
+def superflex_report(store, settings) -> None:
+    """The format the value model is worst at, kept measured rather than
+    remembered.
+
+    A second quarterback slot is where every wrong assumption in this codebase
+    showed up at once, so this section exists to catch the next one. Three
+    separate defects fed it and none of them announced itself:
+
+      the MARKET was a one-QB market. Sleeper's half-PPR ADP has Josh Allen at
+      20.9 where its own two-QB list has him at 3.4, so the score charged a
+      thirty-point reach to anyone taking a quarterback at his real price and
+      the survival model — which decides wait cost — thought every one of them
+      would last another turn.
+
+      the CONSENSUS was a one-QB consensus. ESPN, CBS and Boris Chen publish
+      no superflex board, and averaged in they outvoted the one list that did,
+      two to one.
+
+      and nothing compared the board's ORDERING to that consensus at all, so
+      the gap below could grow to seven quarterbacks wide unchallenged.
+
+    The headline number is quarterbacks inside the top 24 — the first two
+    rounds, where the format is actually decided.
+    """
+    league = LeagueConfig(
+        name="superflex eval",
+        num_teams=10,
+        my_slot=1,
+        scoring=ScoringSettings.preset("half_ppr"),
+        roster=RosterSlots(qb=1, rb=2, wr=2, te=1, flex=1, superflex=1, k=1, dst=1, bench=7),
+    )
+    # Run it twice. The second league scores rushing and receiving first downs,
+    # which is the shape of the user's own superflex league and the single
+    # biggest legitimate reason for this board to disagree with a published
+    # one: ECR is a GENERIC superflex order and cannot know the rule exists.
+    # Seeing both makes the difference between "the model has a reason" and
+    # "the model has a bug" a number rather than an argument.
+    first_downs = league.model_copy(deep=True)
+    first_downs.scoring.weights["rush_fd"] = 1.0
+    first_downs.scoring.weights["rec_fd"] = 1.0
+
+    def mix_of(players, key, n):
+        counts = dict.fromkeys(POSITIONS, 0)
+        for p in sorted(players, key=key)[:n]:
+            counts[p.position] += 1
+        return counts
+
+    boards = {}
+    for label, config in (("plain", league), ("first downs", first_downs)):
+        built = build_pool(
+            store,
+            config,
+            season=settings.season,
+            scoring_preset="half_ppr",
+            overrides_path=OVERRIDES,
+        ).players
+        boards[label] = [p for p in built if p.rank_by_source.get("fantasypros")]
+
+    ranked = boards["plain"]
+    if not ranked:
+        print("SUPERFLEX - no superflex ECR snapshot; run warm_snapshots.py first")
+        return
+
+    print("SUPERFLEX (10 teams, 1 superflex slot) - board mix vs superflex ECR")
+    print(f"{'':21}{'QB':>5}{'RB':>5}{'WR':>5}{'TE':>5}")
+    for n in (24, 36, 60, 100):
+        ecr = mix_of(ranked, lambda p: p.rank_by_source["fantasypros"], n)
+        row = "".join(f"{ecr[x]:>5}" for x in ("QB", "RB", "WR", "TE"))
+        print(f"  top {n:>3}  {'ECR':<11}{row}")
+        for label in ("plain", "first downs"):
+            board = mix_of(boards[label], lambda p: p.rank, n)
+            row = "".join(f"{board[x]:>5}" for x in ("QB", "RB", "WR", "TE"))
+            print(f"{'':10} {label:<11}{row}")
+
+    # The consensus must be the superflex one, not an average that includes
+    # three one-QB boards. If this drifts, so has the advice.
+    leaked = [
+        p.name
+        for p in ranked[:40]
+        if p.consensus_rank is not None
+        and p.rank_by_source.get("fantasypros") is not None
+        and abs(p.consensus_rank - p.rank_by_source["fantasypros"]) > 0.05
+    ]
+    print(
+        f"  consensus == superflex ECR for the top 40: {not leaked}"
+        + (f" (leaked: {leaked[:3]})" if leaked else "")
+    )
+    print()
+
+
 def main() -> int:
     settings = get_settings()
     store = SnapshotStore(settings.snapshots_dir, offline=True)
+    superflex_report(store, settings)
     league = LeagueConfig(
         name="eval",
         num_teams=12,
